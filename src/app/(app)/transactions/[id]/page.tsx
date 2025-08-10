@@ -1,0 +1,254 @@
+
+'use client';
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+ DialogDescription,
+  CardDescription,
+} from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { AlertCircle, ArrowLeft, ArrowLeftRight, CheckCircle, Clock, Copy } from 'lucide-react';
+import Link from 'next/link';
+import { useWallet } from '@/contexts/wallet-context';
+import { FullPageLoader, ErrorDisplay } from '@/components/ui/loader';
+import { useToast } from '@/hooks/use-toast';
+import type { Transaction, TransactionInput, TransactionOutput } from '@/lib/types';
+import { getTransactionData } from '@/lib/blockchain-api';
+
+function DetailItem({ label, value, children }: { label: string; value?: React.ReactNode; children?: React.ReactNode }) {
+  return (
+    <div className="flex justify-between items-baseline text-sm py-1">
+      <span className="text-muted-foreground">{label}</span>
+      <div className="font-mono text-right break-all flex items-center gap-2">
+        {value ?? children}
+      </div>
+    </div>
+  );
+}
+
+function AddressCard({ title, items, btcPrice, currency }: { title: string; items: Array<{address: string | null, value: number}>; btcPrice: number, currency: string }) {
+    const formatCurrency = (value: number) => {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: currency,
+        }).format(value);
+    }
+    
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>{title} ({items.length})</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-4">
+                {items.map((item, index) => (
+                    <div key={index} className="flex justify-between items-center">
+                        <div>
+                            {item.address ? (
+                                <Link href={`/address/${item.address}`} className="font-mono text-xs hover:underline truncate block cursor-pointer">
+                                    {item.address}
+                                </Link>
+                            ) : (
+                                <span className="text-xs text-muted-foreground">Coinbase (New Coins)</span>
+                            )}
+                        </div>
+                        <div className="text-right flex-shrink-0 pl-4">
+                            <div className="font-semibold">{(item.value / 1e8).toFixed(8)} BTC</div>
+                            <div className="text-xs text-muted-foreground">{formatCurrency((item.value / 1e8) * btcPrice)}</div>
+                        </div>
+                    </div>
+                ))}
+                {items.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center">No {title.toLowerCase()} found.</p>
+                )}
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+export default function TransactionDetailsPage() {
+  const params = useParams();
+  const txid = params.id as string;
+  const router = useRouter();
+  const { data: walletData, isLoading: isWalletLoading, error: walletError, fiatPrice, currency } = useWallet();
+  const { toast } = useToast();
+
+  const [pageData, setPageData] = useState<Transaction | null>(null);
+  const [pageIsLoading, setPageIsLoading] = useState(true);
+  const [pageError, setPageError] = useState<string | null>(null);
+
+  const loadData = useCallback(async () => {
+    setPageIsLoading(true);
+    setPageError(null);
+    setPageData(null);
+
+    if (isWalletLoading) {
+        return;
+    }
+
+    const txInWallet = walletData?.transactions.find((t) => t.id === txid);
+
+    if (txInWallet) {
+        setPageData(txInWallet);
+        setPageIsLoading(false);
+    } else {
+        // Transaction is not in the user's wallet, fetch its data externally
+        const { data: externalData, error } = await getTransactionData(txid);
+        if (error) {
+            setPageError(error);
+        } else if (externalData) {
+            setPageData(externalData);
+        } else {
+            setPageError("Could not find data for this transaction.");
+        }
+        setPageIsLoading(false);
+    }
+  }, [txid, walletData, isWalletLoading]);
+
+  useEffect(() => {
+    loadData();
+  }, [txid, loadData]);
+
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: 'Copied to clipboard',
+      description: text,
+    });
+  };
+
+  if (isWalletLoading || pageIsLoading) return <FullPageLoader />;
+  if (walletError && !pageData) return <ErrorDisplay message={walletError} />;
+  
+  if (pageError) {
+      return (
+        <div className="flex flex-col items-center justify-center gap-4 text-center">
+            <AlertCircle className="h-12 w-12 text-destructive" />
+            <h1 className="text-2xl font-bold">Transaction Not Found</h1>
+            <p className="text-muted-foreground">{pageError}</p>
+            <Button onClick={() => router.back()}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back
+            </Button>
+        </div>
+      );
+  }
+
+  if (!pageData) return <ErrorDisplay message="No data found for this transaction." />;
+
+  const tx = pageData;
+  const btcPrice = fiatPrice || 0; 
+  const feeInBtc = tx.fee / 1e8;
+  const feeInFiat = feeInBtc * btcPrice;
+  const netAmountFiat = Math.abs(tx.btc * btcPrice);
+  const inputValue = tx.inputs.reduce((sum, i) => sum + (i.value || 0), 0) / 1e8;
+  const outputValue = tx.outputs.reduce((sum, o) => sum + o.value, 0) / 1e8;
+  
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currency,
+    }).format(value);
+  }
+
+  return (
+    <div className="mx-auto max-w-6xl space-y-6">
+        <div>
+            <Button variant="ghost" onClick={() => router.back()} className='text-muted-foreground'>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back
+            </Button>
+        </div>
+
+        <Card>
+            <CardHeader>
+                <div className="flex items-center gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                        <ArrowLeftRight className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                        <CardTitle className="text-xl">Bitcoin Transaction</CardTitle>
+                        <CardDescription>
+                            Broadcasted on {new Date(tx.date).toLocaleString()}
+                        </CardDescription>
+                    </div>
+                </div>
+                <div className="text-xs text-muted-foreground font-mono break-all mt-4 flex items-center gap-2">
+                    <span>{tx.id}</span>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleCopy(tx.id)} aria-label="Copy transaction ID">
+                        <Copy className="h-4 w-4"/>
+                    </Button>
+                </div>
+            </CardHeader>
+        </Card>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1 space-y-6">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Summary</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-1">
+                        <DetailItem label="Net Amount">
+                            <div className="text-right">
+                                <div className="font-bold">{tx.btc.toFixed(8)} BTC</div>
+                                <div className="text-muted-foreground">{formatCurrency(netAmountFiat)}</div>
+                            </div>
+                        </DetailItem>
+                         <DetailItem label="Fee">
+                             <div className="text-right">
+                                <div>{tx.fee} SATS</div>
+                                <div className="text-muted-foreground">{formatCurrency(feeInFiat)}</div>
+                            </div>
+                        </DetailItem>
+                    </CardContent>
+                 </Card>
+                 <Card>
+                    <CardHeader className="flex flex-row items-center justify-between pb-4">
+                        <CardTitle>Status</CardTitle>
+                        <Badge variant={tx.status === 'Confirmed' ? 'outline' : 'secondary'}>{tx.status}</Badge>
+                    </CardHeader>
+                    <CardContent className="flex items-start gap-4">
+                        {tx.status === 'Confirmed' ? <CheckCircle className="h-8 w-8 text-emerald-500 mt-1"/> : <Clock className="h-8 w-8 text-amber-500 mt-1"/>}
+                        <div>
+                            <p className="font-semibold">This transaction has {tx.confirmations.toLocaleString()} confirmations.</p>
+                            <p className="text-sm text-muted-foreground">
+                                {tx.blockHeight ? `It was mined in Block ${tx.blockHeight}.` : 'Waiting to be mined.'}
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+            <div className="lg:col-span-2">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Advanced Details</CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-1">
+                        <DetailItem label="Input Value" value={`${inputValue.toFixed(8)} BTC`} />
+                        <DetailItem label="Output Value" value={`${outputValue.toFixed(8)} BTC`} />
+                        <DetailItem label="Fee/vB" value={`${tx.size > 0 ? (tx.fee / tx.size).toFixed(2) : 0} sat/vB`} />
+                        <DetailItem label="Size" value={`${tx.size} Bytes`} />
+                        <DetailItem label="Weight" value={`${tx.weight} WU`} />
+                        <DetailItem label="Version" value={tx.version} />
+                        <DetailItem label="Locktime" value={tx.locktime} />
+                        <DetailItem label="RBF" value={tx.rbf ? 'Enabled' : 'Disabled'} />
+                    </CardContent>
+                </Card>
+            </div>
+        </div>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <AddressCard title="From (Inputs)" items={tx.inputs} btcPrice={btcPrice} currency={currency} />
+            <AddressCard title="To (Outputs)" items={tx.outputs} btcPrice={btcPrice} currency={currency} />
+        </div>
+    </div>
+  );
+}

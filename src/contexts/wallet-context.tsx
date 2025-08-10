@@ -1,0 +1,697 @@
+
+'use client';
+
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { getPublicKey, nip19, nip04, finalizeEvent, SimplePool } from 'nostr-tools';
+import type { Event as NostrEvent } from 'nostr-tools';
+import { getWalletData as fetchWalletData } from '@/lib/blockchain';
+import type { WalletData, Message, SecurityRecommendation, NostrProfile, Currency } from '@/lib/types';
+import { getProactiveInsight } from '@/ai/flows/proactive-insights';
+import { getProactiveSuggestions } from '@/ai/flows/proactive-suggestions';
+import { getSecurityRecommendations } from '@/ai/flows/security-recommendations';
+import { useAnalytics } from '@/hooks/use-analytics';
+
+const SUPPORTED_CURRENCIES: Currency[] = ['USD', 'EUR', 'GBP'];
+
+type WalletState = {
+  activeXpub: string | null;
+  xpubs: string[];
+  data: WalletData | null;
+  isLoading: boolean;
+  error: string | null;
+  messages: Message[];
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  suggestions: string[];
+  recommendations: SecurityRecommendation[];
+  setActiveXpub: (xpub: string | null) => void;
+  addXpub: (xpub: string) => Promise<{ success: boolean; error: string | null }>;
+  removeXpub: (xpub: string) => Promise<void>;
+  refetch: () => void;
+  disconnect: () => void;
+  refreshRecommendations: () => void;
+  // Currency state
+  currency: Currency;
+  setCurrency: (currency: Currency) => void;
+  supportedCurrencies: Currency[];
+  fiatPrice: number;
+  fiatBalance: number;
+  currencySymbol: string;
+  // Nostr state
+  nostrNpub: string | null;
+  nostrProfile: NostrProfile | null;
+  isNostrReady: boolean;
+  connectNostr: (nsec: string) => Promise<{ success: boolean; error?: string }>;
+  loginWithNostr: (nsec: string) => Promise<{ success: boolean; error?: string }>;
+  updateNostrProfile: (newProfile: Partial<NostrProfile>) => Promise<{ success: boolean; error?: string }>;
+  showSaveXpubsPrompt: boolean;
+  setShowSaveXpubsPrompt: React.Dispatch<React.SetStateAction<boolean>>;
+  saveXpubsToNostr: () => Promise<{ success: boolean; error?: string }>;
+  publishNostrNote: (content: string) => Promise<{ success: boolean; error?: string }>;
+};
+
+const WalletContext = createContext<WalletState | undefined>(undefined);
+
+const defaultRelays = [
+  'wss://relay.damus.io',
+  'wss://relay.primal.net',
+  'wss://nos.lol',
+  'wss://relay.snort.social',
+];
+
+
+const generateInitialGreetingMessage = (): Message => {
+    const hour = new Date().getHours();
+    let timeOfDayGreeting;
+
+    if (hour < 12) {
+        timeOfDayGreeting = 'Good morning';
+    } else if (hour < 18) {
+        timeOfDayGreeting = 'Good afternoon';
+    } else {
+        timeOfDayGreeting = 'Good evening';
+    }
+
+    const greetings = [timeOfDayGreeting, 'Hello'];
+    const randomGreeting = greetings[Math.floor(Math.random() * greetings.length)];
+
+    return {
+        role: 'assistant',
+        content: `${randomGreeting}! I'm your BitSleuth AI-powered assistant. Ask me anything about your wallet?`,
+    };
+};
+
+export const WalletProvider = ({ children }: { children: ReactNode }) => {
+  const [xpubs, setXpubs] = useState<string[]>([]);
+  const [activeXpub, setActiveXpub] = useState<string | null>(null);
+  const [data, setData] = useState<WalletState['data']>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [recommendations, setRecommendations] = useState<SecurityRecommendation[]>([]);
+  const [isInitialAiContentLoaded, setIsInitialAiContentLoaded] = useState(false);
+  const { track } = useAnalytics();
+  
+  // Currency state
+  const [currency, _setCurrency] = useState<Currency>('USD');
+
+  // Nostr state
+  const [isNostrReady, setIsNostrReady] = useState(false);
+  const [nostrNsec, setNostrNsec] = useState<string | null>(null);
+  const [nostrNpub, setNostrNpub] = useState<string | null>(null);
+  const [nostrProfile, setNostrProfile] = useState<NostrProfile | null>(null);
+  const [showSaveXpubsPrompt, setShowSaveXpubsPrompt] = useState(false);
+
+  const setCurrency = useCallback((newCurrency: Currency) => {
+    if (SUPPORTED_CURRENCIES.includes(newCurrency)) {
+      _setCurrency(newCurrency);
+      localStorage.setItem('currency', newCurrency);
+      track('change_currency', { currency: newCurrency });
+    }
+  }, [track]);
+
+  // This simply signals that we are on the client and can proceed with Nostr logic.
+  useEffect(() => {
+    setIsNostrReady(true);
+  }, []);
+
+  const fetchNostrProfile = useCallback(async (pubkey: string): Promise<NostrProfile | null> => {
+    const pool = new SimplePool();
+    try {
+        const event = await pool.get(defaultRelays, {
+            authors: [pubkey],
+            kinds: [0],
+            limit: 1,
+        });
+
+        if (event?.content) {
+            const profile = JSON.parse(event.content) as NostrProfile;
+            localStorage.setItem('nostr_profile', JSON.stringify(profile));
+            return profile;
+        }
+        return null;
+    } catch (e) {
+      console.error("Failed to fetch Nostr profile from any relay:", e);
+      return null;
+    } finally {
+        pool.close(defaultRelays);
+    }
+  }, []);
+
+  const loadXpubsFromNostr = useCallback(async (nsec: string): Promise<string[]> => {
+    const pool = new SimplePool();
+    try {
+        const sk = nip19.decode(nsec).data;
+        const pk = getPublicKey(sk as Uint8Array);
+
+        // Fetch the latest kind 4 event from the pool of relays
+        const latestEvent = await pool.get(defaultRelays, {
+            kinds: [4],
+            authors: [pk],
+            '#p': [pk],
+            limit: 1,
+        });
+
+        if (!latestEvent) {
+            return [];
+        }
+
+        const decryptedContent = await nip04.decrypt(sk as Uint8Array, pk, latestEvent.content);
+        const remoteXpubs = JSON.parse(decryptedContent);
+        
+        if (Array.isArray(remoteXpubs)) {
+            return remoteXpubs;
+        }
+    } catch (e) {
+      console.error("Failed to load or decrypt xpubs from Nostr:", e);
+    } finally {
+        pool.close(defaultRelays);
+    }
+    return [];
+  }, []);
+  
+  const publishToRelays = async (event: NostrEvent): Promise<boolean> => {
+    const pool = new SimplePool();
+    try {
+        const pubPromise = pool.publish(defaultRelays, event);
+        await pubPromise;
+        return true;
+    } catch(e) {
+        console.error("Failed to publish to Nostr relays:", e);
+        return false;
+    } finally {
+        pool.close(defaultRelays);
+    }
+  }
+
+  const saveXpubsToNostr = useCallback(async (xpubsToSave?: string[]): Promise<{ success: boolean; error?: string }> => {
+    const currentXpubs = xpubsToSave ?? xpubs;
+    if (!nostrNsec) {
+      return { success: false, error: "Nostr not ready." };
+    }
+    // Allow saving an empty list to clear synced data
+    if (xpubsToSave && xpubsToSave.length === 0) {
+        console.log("Saving empty xpub list to Nostr.");
+    } else if (currentXpubs.length === 0) {
+        return { success: false, error: "No xpubs to save." };
+    }
+
+
+    try {
+      const sk = nip19.decode(nostrNsec).data as Uint8Array;
+      const pk = getPublicKey(sk);
+
+      const plaintext = JSON.stringify(currentXpubs);
+      const ciphertext = await nip04.encrypt(sk, pk, plaintext);
+
+      const eventTemplate = {
+        kind: 4,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [['p', pk]],
+        content: ciphertext,
+        pubkey: pk,
+      };
+
+      const signedEvent = finalizeEvent(eventTemplate, sk);
+      
+      const success = await publishToRelays(signedEvent);
+      
+      if (!success) {
+        return { success: false, error: "Failed to publish to any Nostr relays." };
+      }
+      
+      localStorage.setItem('nostr_save_preference', 'accepted');
+      track('save_xpubs_nostr', { xpub_count: currentXpubs.length });
+
+      return { success: true };
+    } catch (e) {
+      console.error("Failed to save xpubs to Nostr:", e);
+      return { success: false, error: "An unexpected error occurred while saving your xpubs." };
+    }
+  }, [nostrNsec, xpubs, track]);
+  
+  const loginWithNostr = useCallback(async (nsec: string): Promise<{ success: boolean; error?: string }> => {
+    if (!isNostrReady) {
+        return { success: false, error: "Nostr tools not loaded yet. Please try again in a moment." };
+    }
+    
+    try {
+        const { type, data: decodedKey } = nip19.decode(nsec);
+        if (type !== 'nsec') {
+            return { success: false, error: 'Invalid key type. Your key must start with "nsec1".' };
+        }
+        
+        const remoteXpubs = await loadXpubsFromNostr(nsec);
+
+        if (!remoteXpubs || remoteXpubs.length === 0) {
+            return { success: false, error: 'No saved wallets were found for this Nostr account. Please connect with an XPUB key first to get started.' };
+        }
+        
+        const publicKeyHex = getPublicKey(decodedKey as Uint8Array);
+        const npub = nip19.npubEncode(publicKeyHex);
+        
+        // Overwrite local state with remote state
+        setXpubs(remoteXpubs);
+        localStorage.setItem('walletXpubs', JSON.stringify(remoteXpubs));
+        
+        // Set active xpub
+        const newActive = remoteXpubs[0];
+        setActiveXpub(newActive);
+        localStorage.setItem('activeXpub', newActive);
+        
+        // Save Nostr session
+        setNostrNsec(nsec);
+        localStorage.setItem('nostr_nsec', nsec);
+        setNostrNpub(npub);
+        
+        const profile = await fetchNostrProfile(publicKeyHex);
+        setNostrProfile(profile);
+        
+        // Mark preference as accepted since they are logging in this way
+        localStorage.setItem('nostr_save_preference', 'accepted');
+        track('connect_wallet', { method: 'nostr_login' });
+        
+        return { success: true };
+
+    } catch (e) {
+        return { success: false, error: 'The Nostr private key (nsec) you entered appears to be invalid or malformed. Please double-check the key and try again.' };
+    }
+  }, [isNostrReady, loadXpubsFromNostr, fetchNostrProfile, setActiveXpub, track]);
+
+  const connectNostr = useCallback(async (nsec: string): Promise<{ success: boolean; error?: string }> => {
+    if (!isNostrReady) {
+        return { success: false, error: "Nostr tools not loaded yet. Please try again in a moment." };
+    }
+
+    try {
+      const { type, data: decodedKey } = nip19.decode(nsec);
+      if (type !== 'nsec') {
+        return { success: false, error: 'Invalid key type. Please provide a Nostr private key (nsec).' };
+      }
+      const publicKeyHex = getPublicKey(decodedKey as Uint8Array);
+      const npub = nip19.npubEncode(publicKeyHex);
+      
+      const remoteXpubs = await loadXpubsFromNostr(nsec);
+      // Use the current state 'xpubs' which is the most up-to-date list of local keys.
+      const combined = Array.from(new Set([...xpubs, ...remoteXpubs]));
+      
+      // Update state and storage if they have changed after merging.
+      if (JSON.stringify(combined) !== JSON.stringify(xpubs)) {
+        setXpubs(combined);
+        localStorage.setItem('walletXpubs', JSON.stringify(combined));
+      }
+      
+      setNostrNsec(nsec);
+      localStorage.setItem('nostr_nsec', nsec);
+      setNostrNpub(npub);
+      
+      const profile = await fetchNostrProfile(publicKeyHex);
+      setNostrProfile(profile);
+
+      const savePreference = localStorage.getItem('nostr_save_preference');
+      // Check if there are any local keys that weren't on the remote
+      const hasUnsyncedXpubs = xpubs.some((xpub: string) => !remoteXpubs.includes(xpub));
+
+      if (hasUnsyncedXpubs && savePreference !== 'accepted') {
+          setShowSaveXpubsPrompt(true);
+      }
+      
+      track('connect_nostr');
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: 'The Nostr private key (nsec) you entered appears to be invalid or malformed. Please double-check the key and try again.' };
+    }
+  }, [isNostrReady, fetchNostrProfile, loadXpubsFromNostr, xpubs, track]);
+
+  const updateNostrProfile = useCallback(async (newProfileData: Partial<NostrProfile>): Promise<{ success: boolean; error?: string }> => {
+    if (!nostrNsec) {
+      return { success: false, error: "Not connected to Nostr. Cannot update profile." };
+    }
+
+    try {
+      const sk = nip19.decode(nostrNsec).data as Uint8Array;
+      const pk = getPublicKey(sk);
+
+      const updatedProfile = { ...nostrProfile, ...newProfileData };
+
+      const eventTemplate = {
+        kind: 0,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [],
+        content: JSON.stringify(updatedProfile),
+        pubkey: pk,
+      };
+
+      const signedEvent = finalizeEvent(eventTemplate, sk);
+      
+      const success = await publishToRelays(signedEvent);
+
+      if (!success) {
+          return { success: false, error: 'Failed to publish profile update to any relays.' };
+      }
+
+      setNostrProfile(updatedProfile);
+      localStorage.setItem('nostr_profile', JSON.stringify(updatedProfile));
+      track('update_nostr_profile');
+      
+      return { success: true };
+
+    } catch (e) {
+      console.error("Failed to update Nostr profile:", e);
+      return { success: false, error: "An unexpected error occurred while updating your profile." };
+    }
+  }, [nostrNsec, nostrProfile, track]);
+
+  const publishNostrNote = useCallback(async (content: string): Promise<{ success: boolean; error?: string }> => {
+    if (!nostrNsec) {
+      return { success: false, error: "Not connected to Nostr." };
+    }
+
+    try {
+      const sk = nip19.decode(nostrNsec).data as Uint8Array;
+      const pk = getPublicKey(sk);
+
+      const eventTemplate = {
+        kind: 1, // Standard text note
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [], // No tags for a simple broadcast
+        content: content,
+        pubkey: pk,
+      };
+
+      const signedEvent = finalizeEvent(eventTemplate, sk);
+      const success = await publishToRelays(signedEvent);
+
+      if (!success) {
+        return { success: false, error: "Failed to publish note to any Nostr relays." };
+      }
+      track('publish_nostr_note');
+      return { success: true };
+    } catch (e) {
+      console.error("Failed to publish Nostr note:", e);
+      return { success: false, error: "An unexpected error occurred while publishing your note." };
+    }
+  }, [nostrNsec, track]);
+
+  const disconnectNostr = useCallback(() => {
+    setNostrNsec(null);
+    setNostrNpub(null);
+    setNostrProfile(null);
+    try {
+      localStorage.removeItem('nostr_nsec');
+      localStorage.removeItem('nostr_profile');
+      localStorage.removeItem('nostr_save_preference');
+    } catch (e) {
+      console.error('Could not access local storage', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isNostrReady) return;
+    
+    const init = async () => {
+      try {
+        const storedCurrency = localStorage.getItem('currency') as Currency;
+        if (storedCurrency && SUPPORTED_CURRENCIES.includes(storedCurrency)) {
+          _setCurrency(storedCurrency);
+        }
+
+        let currentXpubs = JSON.parse(localStorage.getItem('walletXpubs') || '[]');
+        const storedNsec = localStorage.getItem('nostr_nsec');
+
+        if (storedNsec) {
+            try {
+                const { type, data: decodedKey } = nip19.decode(storedNsec);
+                if (type === 'nsec') {
+                    const publicKeyHex = getPublicKey(decodedKey as Uint8Array);
+                    const npub = nip19.npubEncode(publicKeyHex);
+                    setNostrNsec(storedNsec);
+                    setNostrNpub(npub);
+                    
+                    const remoteXpubs = await loadXpubsFromNostr(storedNsec);
+                    const combined = Array.from(new Set([...currentXpubs, ...remoteXpubs]));
+                    currentXpubs = combined;
+
+                    const storedProfile = localStorage.getItem('nostr_profile');
+                    if (storedProfile) {
+                        setNostrProfile(JSON.parse(storedProfile));
+                    } else {
+                        fetchNostrProfile(publicKeyHex)
+                            .then(setNostrProfile)
+                            .catch(e => console.error("Error fetching profile on initial load:", e));
+                    }
+                } else {
+                    disconnectNostr();
+                }
+            } catch (e) {
+                console.error('Failed to decode stored nsec:', e);
+                disconnectNostr();
+            }
+        }
+        
+        setXpubs(currentXpubs);
+        // Persist the merged list back to local storage
+        localStorage.setItem('walletXpubs', JSON.stringify(currentXpubs));
+
+        const storedActiveXpub = localStorage.getItem('activeXpub');
+        if (storedActiveXpub && currentXpubs.includes(storedActiveXpub)) {
+          setActiveXpub(storedActiveXpub);
+        } else if (currentXpubs.length > 0) {
+          const newActive = currentXpubs[0];
+          setActiveXpub(newActive);
+          localStorage.setItem('activeXpub', newActive);
+        } else {
+          setIsLoading(false);
+        }
+
+        if (currentXpubs.length > 0) {
+            setMessages([generateInitialGreetingMessage()]);
+        }
+      } catch (e) {
+        console.error('Could not access local storage', e);
+        setIsLoading(false);
+      }
+    };
+    init();
+  }, [isNostrReady, fetchNostrProfile, disconnectNostr, loadXpubsFromNostr]);
+
+  const setActiveXpubAndPersist = useCallback((newXpub: string | null) => {
+    setActiveXpub(newXpub);
+    if (newXpub) {
+      localStorage.setItem('activeXpub', newXpub);
+    } else {
+      localStorage.removeItem('activeXpub');
+    }
+    setData(null);
+    setRecommendations([]);
+    setMessages([generateInitialGreetingMessage()]);
+    setIsInitialAiContentLoaded(false);
+  }, []);
+
+  const addXpub = useCallback(async (newXpub: string): Promise<{ success: boolean; error: string | null }> => {
+    if (xpubs.includes(newXpub)) {
+      setActiveXpubAndPersist(newXpub);
+      return { success: true, error: null };
+    }
+
+    const validationResult = await fetchWalletData(newXpub, currency);
+    if (validationResult.error) {
+      return { success: false, error: validationResult.error };
+    }
+
+    const newXpubs = [...xpubs, newXpub];
+    setXpubs(newXpubs);
+    localStorage.setItem('walletXpubs', JSON.stringify(newXpubs));
+    setActiveXpubAndPersist(newXpub);
+
+    const savePreference = localStorage.getItem('nostr_save_preference');
+    if (nostrNsec && savePreference === 'accepted') {
+      // Fire-and-forget the save operation
+      saveXpubsToNostr(newXpubs).catch(e => console.error("Failed to auto-save xpubs to Nostr:", e));
+    } else if (nostrNsec) {
+      setShowSaveXpubsPrompt(true);
+    }
+
+    track('connect_wallet', { method: 'xpub' });
+    return { success: true, error: null };
+  }, [xpubs, setActiveXpubAndPersist, nostrNsec, saveXpubsToNostr, track, currency]);
+
+  const removeXpub = useCallback(async (xpubToRemove: string) => {
+    const newXpubs = xpubs.filter(x => x !== xpubToRemove);
+    setXpubs(newXpubs);
+    localStorage.setItem('walletXpubs', JSON.stringify(newXpubs));
+
+    if (activeXpub === xpubToRemove) {
+      const newActive = newXpubs.length > 0 ? newXpubs[0] : null;
+      setActiveXpubAndPersist(newActive);
+    }
+    
+    const savePreference = localStorage.getItem('nostr_save_preference');
+    if (nostrNsec && savePreference === 'accepted') {
+        saveXpubsToNostr(newXpubs).catch(e => console.error("Failed to auto-save xpubs to Nostr:", e));
+    }
+  }, [xpubs, activeXpub, setActiveXpubAndPersist, nostrNsec, saveXpubsToNostr]);
+
+  const disconnect = useCallback(() => {
+    setXpubs([]);
+    setActiveXpub(null);
+    setData(null);
+    setSuggestions([]);
+    setRecommendations([]);
+    setIsInitialAiContentLoaded(false);
+    setMessages([]);
+    track('disconnect_wallet');
+    try {
+      localStorage.removeItem('walletXpubs');
+      localStorage.removeItem('activeXpub');
+    } catch (e) {
+      console.error('Could not access local storage', e);
+    }
+    disconnectNostr();
+  }, [disconnectNostr, track]);
+
+  const getWalletData = useCallback(async () => {
+    if (!activeXpub) {
+        setData(null);
+        setError(null);
+        setIsLoading(false);
+        return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    
+    const response = await fetchWalletData(activeXpub, currency);
+
+    if (response.error) {
+      setError(response.error);
+      setData(null);
+    } else if (response.data) {
+      setData(response.data);
+    }
+    
+    setIsLoading(false);
+
+  }, [activeXpub, currency]);
+
+  useEffect(() => {
+    getWalletData();
+  }, [activeXpub, getWalletData]);
+
+  // Effect for periodically refreshing the fiat price
+  useEffect(() => {
+    const intervalId = setInterval(async () => {
+        if (!activeXpub || document.hidden) {
+            return;
+        }
+        try {
+            const tickerUrl = 'https://blockchain.info/ticker';
+            const response = await fetch(tickerUrl);
+            if (!response.ok) {
+                throw new Error('Failed to fetch ticker data');
+            }
+            const btcPrices = await response.json();
+            
+            // Update the price in the main data object to keep it consistent
+            setData(prevData => {
+                if (!prevData) return null;
+                return { ...prevData, btcPrices };
+            });
+            
+        } catch (e) {
+            console.warn("Could not refresh BTC price:", e);
+        }
+    }, 60000); // every 60 seconds
+
+    return () => clearInterval(intervalId);
+  }, [activeXpub]);
+
+  const refreshRecommendations = useCallback(async () => {
+    if (!data) return;
+
+    setRecommendations([]);
+
+    try {
+      const walletDataString = JSON.stringify(data);
+      const recommendationsResult = await getSecurityRecommendations({ walletData: walletDataString });
+
+      if (recommendationsResult.recommendations && recommendationsResult.recommendations.length > 0) {
+        setRecommendations(recommendationsResult.recommendations);
+      }
+    } catch (e) {
+      console.error("Failed to refresh security recommendations:", e);
+    }
+  }, [data]);
+
+  useEffect(() => {
+    if (!data || isInitialAiContentLoaded) {
+        return;
+    }
+
+    const generateInitialChatContent = async () => {
+      try {
+        const summaryPayload = {
+          balanceBTC: data.balanceBTC,
+          balanceUSD: (data.balanceBTC || 0) * (data.btcPrices?.['USD']?.last || 0),
+          transactionCount: data.transactions.length,
+          securityScore: data.securityScore,
+          opsecThreat: data.opsecThreat,
+          usedAddressCount: data.usedAddressCount,
+          dustAmountBTC: data.dustAmountBTC,
+          dustUtxoCount: data.dustUtxoCount,
+          utxoCount: data.utxos.length,
+          hasOldTxs: data.transactions.some(tx => new Date(tx.date).getFullYear() < new Date().getFullYear() - 1),
+        };
+
+        const insightPayload = { ...summaryPayload, utxos: data.utxos.slice(0, 20), transactions: data.transactions.slice(0, 10).map(tx => ({ fee: tx.fee, btc: tx.btc, date: tx.date })) };
+        
+        const [insightResult, suggestionsResult] = await Promise.all([
+          getProactiveInsight({ walletData: JSON.stringify(insightPayload) }),
+          getProactiveSuggestions({ walletSummary: JSON.stringify(summaryPayload) }),
+        ]);
+
+        if (insightResult.insight) {
+          const insightMessage: Message = { role: 'assistant', content: insightResult.insight };
+          setMessages((prev) => [...prev, insightMessage]);
+        }
+        if (suggestionsResult.suggestions && suggestionsResult.suggestions.length > 0) {
+          setSuggestions(suggestionsResult.suggestions);
+        }
+
+      } catch (e) {
+        console.error("Failed to generate proactive content:", e);
+      } finally {
+        setIsInitialAiContentLoaded(true);
+      }
+    };
+
+    if (messages.length === 0) {
+        setMessages([generateInitialGreetingMessage()]);
+    }
+    generateInitialChatContent();
+  }, [data, isInitialAiContentLoaded, messages.length]);
+
+  // Derived currency values
+  const fiatPrice = data?.btcPrices?.[currency]?.last || 0;
+  const currencySymbol = data?.btcPrices?.[currency]?.symbol || '$';
+  const fiatBalance = (data?.balanceBTC || 0) * fiatPrice;
+
+
+  return (
+    <WalletContext.Provider value={{
+      activeXpub, xpubs, data, isLoading, error, messages, setMessages, suggestions, recommendations, setActiveXpub: setActiveXpubAndPersist, addXpub, removeXpub, refetch: getWalletData, disconnect, refreshRecommendations, 
+      currency, setCurrency, supportedCurrencies: SUPPORTED_CURRENCIES, fiatPrice, fiatBalance, currencySymbol,
+      nostrNpub, nostrProfile, isNostrReady, connectNostr, loginWithNostr, updateNostrProfile, showSaveXpubsPrompt, setShowSaveXpubsPrompt, saveXpubsToNostr, publishNostrNote
+      }}>
+      {children}
+    </WalletContext.Provider>
+  );
+};
+
+export const useWallet = () => {
+  const context = useContext(WalletContext);
+  if (context === undefined) {
+    throw new Error('useWallet must be used within a WalletProvider');
+  }
+  return context;
+};

@@ -1,0 +1,210 @@
+
+
+'use client';
+
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { SendHorizonal, Bot, ThumbsUp, CircleDashed, Copy, Zap } from 'lucide-react';
+import Image from 'next/image';
+
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { submitFeedback } from '@/ai/flows/feedback-flow';
+import { usePathname } from 'next/navigation';
+import { DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'; // Import Dialog components
+import { useWallet } from '@/contexts/wallet-context';
+import { useAnalytics } from '@/hooks/use-analytics';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
+import { Separator } from '@/components/ui/separator';
+
+const feedbackSchema = z.object({
+  feedback: z.string().min(10, 'Please provide at least 10 characters of feedback.'),
+});
+
+const lightningAddress = "laxspleen65@walletofsatoshi.com";
+const lnurl = "lnurl1dp68gurn8ghj7ampd3kx2ar0veekzar0wd5xjtnrdakj7tnhv4kxctttdehhwm30d3h82unvwqhkcctcwdcxcet9dcmr2sgqlne";
+
+
+export default function FeedbackPage() {
+  const form = useForm<z.infer<typeof feedbackSchema>>({
+    resolver: zodResolver(feedbackSchema),
+    defaultValues: {
+      feedback: '',
+    },
+  });
+
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  const pathname = usePathname();
+  const { data: walletData } = useWallet();
+  const { track } = useAnalytics();
+
+  const handleCopy = (textToCopy: string, type: string) => {
+    navigator.clipboard.writeText(textToCopy);
+    toast({
+      title: 'Copied to clipboard',
+      description: `${type}: ${textToCopy}`,
+    });
+  };
+
+  async function onSubmit(data: z.infer<typeof feedbackSchema>) {
+    setIsLoading(true);
+    setError(null);
+    setIsSubmitted(false);
+
+    try {
+        const walletSummary = walletData ? {
+            balance: walletData.balanceBTC,
+            txCount: walletData.transactions.length,
+            securityScore: walletData.securityScore
+        } : {};
+
+        const context = {
+            currentPage: pathname,
+            walletSummary,
+        }
+
+      const result = await submitFeedback({
+        feedback: data.feedback,
+        userContext: JSON.stringify(context, null, 2)
+      });
+      
+      track('submit_feedback', { category: result.category, sentiment: result.sentiment });
+      setIsSubmitted(true);
+      form.reset();
+
+    } catch (err: any) {
+      console.error('Feedback submission error:', err);
+      setError(err.message || 'Sorry, something went wrong while submitting your feedback. Please try again later.');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  if (isSubmitted) {
+    return (
+        <div className="flex h-[calc(100vh-12rem)] flex-col items-center justify-center text-center">
+            <div className="rounded-xl border bg-card p-8 shadow-sm max-w-lg space-y-4">
+                <div className="flex justify-center">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                        <ThumbsUp className="h-8 w-8 text-primary" />
+                    </div>
+                </div>
+                <AlertTitle className="text-2xl font-bold">Thank You!</AlertTitle>
+                <AlertDescription className="text-muted-foreground">
+                    Your feedback has been submitted successfully. We appreciate you taking the time to help us improve BitSleuth.
+                </AlertDescription>
+                <Button onClick={() => setIsSubmitted(false)}>Submit More Feedback</Button>
+            </div>
+        </div>
+    )
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl space-y-8">
+        <div className="text-center space-y-2">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tighter">Submit Feedback</h1>
+            <p className="text-muted-foreground">
+                We'd love to hear your thoughts! Let us know what you like, what could be better, or if you've found a bug.
+            </p>
+        </div>
+
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <FormField
+            control={form.control}
+            name="feedback"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="sr-only">Your Feedback</FormLabel>
+                <FormControl>
+                  <Textarea
+                    {...field}
+                    placeholder="Tell us what you think..."
+                    className="min-h-36"
+                    rows={6}
+                    aria-label="Feedback input form"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+            {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+          <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
+            {isLoading ? (
+                <>
+                    <CircleDashed className="animate-spin" />
+                    Submitting...
+                </>
+            ) : (
+                <>
+                    <SendHorizonal />
+                    Send Feedback
+                </>
+            )}
+          </Button>
+        </form>
+      </Form>
+      
+      <Card>
+          <CardHeader>
+            <CardTitle className='flex items-center gap-2 text-xl md:text-2xl font-bold'><Zap className='text-amber-500'/>Support BitSleuth</CardTitle>
+            <CardDescription>
+              If you find this tool helpful, consider sending a few sats. Your support helps us keep the servers running and continue development.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col md:flex-row items-center gap-4 md:gap-6">
+            <div className="flex-shrink-0">
+                <Image
+                  src="/lightning-qr.png"
+                  alt="A QR code for sending a Lightning Network donation to support BitSleuth."
+                  width={160}
+                  height={160}
+                  className="rounded-lg border bg-white p-1"
+                />
+            </div>
+            <div className="w-full text-center md:text-left space-y-4">
+                <div>
+                    <p className="text-sm text-muted-foreground">Lightning Address:</p>
+                    <div className="flex items-center justify-center md:justify-start gap-2 mt-1">
+                        <code className="font-mono text-sm break-all">{lightningAddress}</code>
+                        <Button variant="ghost" size="icon" className="shrink-0" onClick={() => handleCopy(lightningAddress, 'Lightning Address')} aria-label="Copy Lightning Address">
+                            <Copy className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+
+                <Separator />
+                
+                <div>
+                    <p className="text-sm text-muted-foreground">Or copy the LNURL:</p>
+                    <div className="flex items-center justify-center md:justify-start gap-2 mt-1">
+                        <code className="font-mono text-xs break-all">{lnurl}</code>
+                        <Button variant="ghost" size="icon" className="shrink-0" onClick={() => handleCopy(lnurl, 'LNURL')} aria-label="Copy LNURL">
+                            <Copy className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+            </div>
+          </CardContent>
+      </Card>
+      
+      <Alert>
+        <Bot className="h-4 w-4" />
+        <AlertTitle>How it works</AlertTitle>
+        <AlertDescription>
+          Your feedback is processed by BitSleuth AI-powered agent to help us categorize and understand it. This helps our developers quickly identify issues and prioritize new features. Thank you for helping us improve BitSleuth!
+        </AlertDescription>
+      </Alert>
+    </div>
+  );
+}

@@ -1,0 +1,10 @@
+{
+  "name": "BitSleuth | AI Bitcoin Wallet Analyzer",
+  "short_name": "BitSleuth",
+  "description": "Get AI-powered insights into any Bitcoin wallet. Analyze transactions, security, and privacy with BitSleuth.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1A1A1A",
+  "theme_color": "#BF5FFF",
+  "icons": []
+}

@@ -1,0 +1,247 @@
+
+export type UTXO = {
+  txid: string;
+  vout: number;
+  address: string;
+  value: number; // in satoshis
+};
+
+export type TransactionInput = {
+  address: string | null; // Coinbase transactions have no address
+  value: number;
+};
+
+export type TransactionOutput = {
+  address: string;
+  value: number;
+  spent: boolean;
+};
+
+export type TransactionLabel = {
+    address: string;
+    label: string;
+    type: 'entity' | 'exchange';
+};
+
+export type Transaction = {
+  id: string;
+  date: string;
+  btc: number;
+  status: 'Confirmed' | 'Pending' | 'Failed';
+  type: 'Sent' | 'Received';
+  fromAddress: (string | null)[];
+  toAddress: string[];
+  confirmations: number;
+  // New fields
+  fee: number;
+  size: number;
+  weight: number;
+  version: number;
+  locktime: number;
+  rbf: boolean;
+  blockHeight: number | null;
+  inputs: TransactionInput[];
+  outputs: TransactionOutput[];
+  historicalPrice?: number; // Optional field for cost basis calculation
+  labels?: TransactionLabel[]; // Added for exchange/entity labels
+};
+
+export type AddressInfo = {
+  address: string;
+  n_tx: number;
+  balance: number;
+};
+
+export type Wallet = {
+  balanceBTC: number;
+  securityScore: number;
+  opsecThreat: 'Low' | 'Medium' | 'High';
+  usedAddressCount: number;
+  dustAmountBTC: number;
+  dustUtxoCount: number;
+  btcPrices: any; // { USD: { last: 70000, symbol: '$' }, ... }
+  performance: {
+    change24h: number;
+    change7d: number;
+    change30d: number;
+  };
+  inflowOutflow: {
+    inflowBTC: number;
+    outflowBTC: number;
+  };
+  utxos: UTXO[];
+  averageFeeRate: number; // sat/vB
+};
+
+export type WalletData = Wallet & {
+  transactions: Transaction[];
+  addresses: AddressInfo[];
+  btcPrice: number;
+};
+
+export type SecurityRecommendation = {
+  title: string;
+  description: string;
+  level: 'Good' | 'Warning' | 'Info' | 'Critical';
+};
+
+export type Message = {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  chart?: any;
+};
+
+export type NewsArticle = {
+  title: string;
+  summary: string;
+  date: string;
+};
+
+export type NostrProfile = {
+  name?: string;
+  display_name?: string;
+  website?: string;
+  about?: string;
+  nip05?: string;
+  lud16?: string;
+  picture?: string;
+  banner?: string;
+};
+
+export type RecommendedFees = {
+  fastestFee: number;
+  halfHourFee: number;
+  hourFee: number;
+  economyFee: number;
+  minimumFee: number;
+};
+
+export type MempoolBlock = {
+  blockSize: number;
+  blockVSize: number;
+  nTx: number;
+  totalFees: number;
+  medianFee: number;
+  feeRange: number[];
+};
+
+export type MempoolInfo = {
+  count: number;
+  vsize: number;
+  total_fee: number;
+  fee_histogram: number[][];
+};
+
+export type LatestBlock = {
+    id: string;
+    height: number;
+    version: number;
+    timestamp: number;
+    tx_count: number;
+    size: number;
+    weight: number;
+    merkle_root: string;
+    previousblockhash: string;
+    mediantime: number;
+    nonce: number;
+    bits: number;
+    difficulty: number;
+};
+
+export type MempoolData = {
+  recommendedFees: RecommendedFees;
+  mempoolBlocks: MempoolBlock[];
+  mempoolInfo: MempoolInfo;
+  latestBlocks: LatestBlock[];
+  networkFeeRate: number;
+  networkFeeLevel: 'Low' | 'Medium' | 'High';
+};
+
+export type MarketData = {
+    price: number;
+    price_change_24h: number;
+    price_change_percentage_24h: number;
+    market_cap: number;
+    market_cap_rank: number;
+    high_24h: number;
+    low_24h: number;
+    total_volume: number;
+    circulating_supply: number;
+    total_supply: number | null;
+    ath: number;
+    atl: number;
+    last_updated: string;
+};
+
+export type MarketChartPoint = {
+    timestamp: number;
+    price: number;
+};
+
+export type CandlestickDataPoint = {
+    time: number;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+}
+
+export type FearAndGreedIndex = {
+    value: number;
+    value_classification: string;
+    timestamp: string;
+};
+
+export type MarketPageData = {
+    marketData: MarketData;
+    chartData: MarketChartPoint[];
+    candlestickData: CandlestickDataPoint[];
+    fearAndGreed: FearAndGreedIndex;
+};
+    
+export type BlockTransaction = {
+  txid: string;
+  fee: number;
+  size: number;
+  weight: number;
+  value: number; // in satoshis
+};
+
+export type BlockDetails = LatestBlock & {
+  transactions: BlockTransaction[];
+};
+
+export type Currency = 'USD' | 'EUR' | 'GBP';
+
+export type Holding = {
+    address: string;
+    balance: number;
+    cost: number;
+    marketValue: number;
+    roi: number;
+    potentialGain: number;
+};
+
+// Types for the new Tax Report Page
+export type TaxReportOutput = {
+    summary: {
+      startDate: string;
+      endDate: string;
+      startValue: number;
+      endValue: number;
+      totalValueChange: number;
+      totalValueChangePercentage: number;
+      costBasis: number;
+      unrealizedGains: number;
+      inflow: number;
+      outflow: number;
+      tradingFees: number;
+      realizedGains: number;
+    };
+    portfolioHistory: Array<{
+      date: string;
+      totalValue: number;
+      costBasis: number;
+    }>;
+    holdings: Array<Holding>;
+  };
