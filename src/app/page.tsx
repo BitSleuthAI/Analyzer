@@ -176,7 +176,7 @@ export default function ConnectWalletPage() {
       <div className="flex w-full max-w-md flex-col items-center justify-center gap-6 rounded-2xl border bg-card p-8 shadow-2xl shadow-primary/10">
         <div className="flex flex-col items-center gap-2 text-center">
             <div className="mb-2 h-12 w-12 rounded-full grid place-items-center bg-white dark:bg-transparent">
-              <Logo className="h-7 w-7" style={{ color: 'hsl(var(--brand))' }} />
+              <Logo className="h-12 w-12" style={{ color: 'hsl(var(--brand))' }} />
             </div>
             <h1 className="font-headline text-3xl font-bold tracking-tighter text-black dark:text-foreground">
                 BitSleuth
