@@ -51,7 +51,10 @@ const TransactionRow = React.memo(({ tx, fiatPrice, currency }: { tx: Transactio
       <TableCell>
         <Link href={`/transactions/${tx.id}`} className="hover:underline cursor-pointer">
           <div className="flex items-center gap-3">
-            <span className={cn("flex items-center justify-center rounded-full p-2", isReceived ? "bg-primary/10 text-primary" : "bg-accent/10 text-accent")}>
+            <span className={cn(
+              "flex items-center justify-center rounded-full p-2",
+              isReceived ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"
+            )}>
               {isReceived ? <ArrowDownLeft className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
             </span>
             <div>
