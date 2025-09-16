@@ -1,6 +1,4 @@
 # AGENTS.md
 
-
-
-\## Project overview
+## Project overview
 
