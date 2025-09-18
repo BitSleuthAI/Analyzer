@@ -138,8 +138,8 @@ export default function DashboardPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Type</TableHead>
-                <TableHead>Amount (BTC)</TableHead>
+                <TableHead>Details</TableHead>
+                <TableHead className="text-right">Amount (BTC)</TableHead>
                 <TableHead className="hidden text-right md:table-cell">Amount (Fiat)</TableHead>
                 <TableHead className="text-right">Status</TableHead>
               </TableRow>
