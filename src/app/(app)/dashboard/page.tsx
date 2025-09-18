@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, Bitcoin, ShieldCheck, TrendingUp, TrendingDown, ArrowUpCircle, ArrowDownCircle, RefreshCw } from 'lucide-react';
+import { ArrowRight, Bitcoin, ShieldCheck, TrendingUp, TrendingDown, ArrowUpCircle, ArrowDownCircle, RefreshCw, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -154,29 +154,44 @@ export default function DashboardPage() {
               )}
               {recentTransactions.map((tx) => {
                 const fiatAmount = Math.abs(tx.btc * fiatPrice);
+                const isReceived = tx.type === 'Received';
                 return (
                     <TableRow key={tx.id}>
                     <TableCell>
-                        <div className="font-medium">{tx.type}</div>
-                        <div className="text-sm text-muted-foreground font-normal">
-                        {new Date(tx.date).toLocaleDateString()}
+                        <div className="flex items-center gap-3">
+                            <span
+                                className={cn(
+                                    "flex items-center justify-center rounded-full p-2",
+                                    isReceived
+                                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                        : "bg-destructive/10 text-destructive"
+                                )}
+                            >
+                                {isReceived ? <ArrowDownLeft className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
+                            </span>
+                            <div>
+                                <div className="font-medium">{tx.type}</div>
+                                <div className="text-sm text-muted-foreground font-normal">
+                                    {new Date(tx.date).toLocaleDateString()}
+                                </div>
+                            </div>
                         </div>
                     </TableCell>
                     <TableCell
                         className={cn(
-                        'font-mono',
-                        tx.type === 'Received' ? 'text-emerald-500' : 'text-rose-500'
+                        'text-right font-mono',
+                        isReceived ? 'text-emerald-500' : 'text-rose-500'
                         )}
                     >
-                        {tx.btc > 0 ? '+' : ''}{tx.btc.toFixed(6)}
+                        {tx.btc > 0 ? '+' : ''}{tx.btc.toFixed(6)} BTC
                     </TableCell>
                     <TableCell
                         className={cn(
                         'hidden text-right md:table-cell',
-                        tx.type === 'Received' ? 'text-emerald-500' : 'text-rose-500'
+                        isReceived ? 'text-emerald-500' : 'text-rose-500'
                         )}
                     >
-                        {tx.type === 'Sent' ? '-' : '+'}{formatCurrency(fiatAmount)}
+                        {isReceived ? '+' : '-'}{formatCurrency(fiatAmount)}
                     </TableCell>
                     <TableCell className="text-right">
                         <Badge
