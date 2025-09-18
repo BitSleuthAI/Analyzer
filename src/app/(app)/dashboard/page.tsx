@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, Bitcoin, ShieldCheck, TrendingUp, TrendingDown, ArrowUpCircle, ArrowDownCircle, RefreshCw } from 'lucide-react';
+import { ArrowRight, Bitcoin, ShieldCheck, TrendingUp, TrendingDown, ArrowUpCircle, ArrowDownCircle, RefreshCw, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -138,8 +138,8 @@ export default function DashboardPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Type</TableHead>
-                <TableHead>Amount (BTC)</TableHead>
+                <TableHead>Details</TableHead>
+                <TableHead className="text-right">Amount (BTC)</TableHead>
                 <TableHead className="hidden text-right md:table-cell">Amount (Fiat)</TableHead>
                 <TableHead className="text-right">Status</TableHead>
               </TableRow>
@@ -154,36 +154,51 @@ export default function DashboardPage() {
               )}
               {recentTransactions.map((tx) => {
                 const fiatAmount = Math.abs(tx.btc * fiatPrice);
+                const isReceived = tx.type === 'Received';
                 return (
                     <TableRow key={tx.id}>
                     <TableCell>
-                        <div className="font-medium">{tx.type}</div>
-                        <div className="text-sm text-muted-foreground font-normal">
-                        {new Date(tx.date).toLocaleDateString()}
+                        <div className="flex items-center gap-3">
+                            <span
+                                className={cn(
+                                    "flex items-center justify-center rounded-full p-2 w-8 h-8",
+                                    isReceived
+                                        ? "bg-chart-positive/10 text-chart-positive"
+                                        : "bg-chart-negative/10 text-chart-negative"
+                                )}
+                            >
+                                {isReceived ? <ArrowDownLeft className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
+                            </span>
+                            <div>
+                                <div className="font-medium">{tx.type}</div>
+                                <div className="text-sm text-muted-foreground font-normal">
+                                    {new Date(tx.date).toLocaleDateString()}
+                                </div>
+                            </div>
                         </div>
                     </TableCell>
                     <TableCell
                         className={cn(
-                        'font-mono',
-                        tx.type === 'Received' ? 'text-emerald-500' : 'text-rose-500'
+                        'text-right font-mono',
+                        isReceived ? 'text-chart-positive' : 'text-chart-negative'
                         )}
                     >
-                        {tx.btc > 0 ? '+' : ''}{tx.btc.toFixed(6)}
+                        {tx.btc > 0 ? '+' : ''}{tx.btc.toFixed(6)} BTC
                     </TableCell>
                     <TableCell
                         className={cn(
                         'hidden text-right md:table-cell',
-                        tx.type === 'Received' ? 'text-emerald-500' : 'text-rose-500'
+                        isReceived ? 'text-chart-positive' : 'text-chart-negative'
                         )}
                     >
-                        {tx.type === 'Sent' ? '-' : '+'}{formatCurrency(fiatAmount)}
+                        {isReceived ? '+' : '-'}{formatCurrency(fiatAmount)}
                     </TableCell>
                     <TableCell className="text-right">
                         <Badge
                         variant={tx.status === 'Confirmed' ? 'outline' : 'secondary'}
                         className={cn(
-                            tx.status === 'Confirmed' && 'border-emerald-500/40 text-emerald-400',
-                            tx.status === 'Pending' && 'border-amber-500/40 text-amber-400'
+                            tx.status === 'Confirmed' && 'border-chart-positive/40 text-chart-positive',
+                            tx.status === 'Pending' && 'border-yellow-500/40 text-yellow-500'
                         )}
                         >
                         {tx.status}
