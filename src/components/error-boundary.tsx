@@ -19,6 +19,14 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   public static getDerivedStateFromError(error: Error): State {
+    // Don't show fallback UI for chunk loading errors that will be handled by retry service
+    if (error.message?.includes('Loading chunk') || 
+        error.message?.includes('ChunkLoadError') ||
+        error.name === 'ChunkLoadError' ||
+        error.message?.includes('Loading CSS chunk') ||
+        error.message?.includes('Loading JS chunk')) {
+      return { hasError: false, error };
+    }
     return { hasError: true, error };
   }
 
