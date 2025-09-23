@@ -25,7 +25,7 @@ export class ErrorBoundary extends Component<Props, State> {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
     
     // Check if it's a chunk loading error
-    if (error.message.includes('Loading chunk') || error.message.includes('ChunkLoadError')) {
+    if (error.message?.includes('Loading chunk') || error.message?.includes('ChunkLoadError')) {
       // Reload the page to retry loading chunks
       setTimeout(() => {
         window.location.reload();
@@ -42,7 +42,7 @@ export class ErrorBoundary extends Component<Props, State> {
               Something went wrong
             </h2>
             <p className="text-gray-600 mb-4">
-              {this.state.error?.message.includes('Loading chunk') 
+              {this.state.error?.message?.includes('Loading chunk') 
                 ? 'Loading application resources...' 
                 : 'An unexpected error occurred'}
             </p>

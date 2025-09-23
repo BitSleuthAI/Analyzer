@@ -55,10 +55,7 @@ const nextConfig: NextConfig = {
     // Exclude problematic modules from webpack processing
     config.externals = config.externals || [];
     if (Array.isArray(config.externals)) {
-      config.externals.push({
-        'handlebars': 'handlebars',
-        'dotprompt': 'dotprompt',
-      });
+      config.externals.push('handlebars', 'dotprompt');
     }
 
     // Ignore problematic modules during server-side rendering
@@ -74,9 +71,9 @@ const nextConfig: NextConfig = {
       config.optimization = {
         ...config.optimization,
         splitChunks: {
-          ...config.optimization.splitChunks,
+          ...config.optimization?.splitChunks,
           cacheGroups: {
-            ...config.optimization.splitChunks.cacheGroups,
+            ...config.optimization?.splitChunks?.cacheGroups,
             default: {
               minChunks: 2,
               priority: -20,
