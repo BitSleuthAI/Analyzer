@@ -27,7 +27,7 @@ const nextConfig: NextConfig = {
   },
   // Add chunk loading optimization
   experimental: {
-    optimizeCss: true,
+    optimizeCss: false, // Disabled to fix critters module issue
   },
   // Improve chunk loading reliability
   webpack: (config, { isServer, dev }) => {
@@ -43,6 +43,31 @@ const nextConfig: NextConfig = {
         filename: 'static/wasm/[name].[hash][ext]',
       },
     });
+
+    // Fix handlebars webpack compatibility
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+      path: false,
+      crypto: false,
+    };
+
+    // Exclude problematic modules from webpack processing
+    config.externals = config.externals || [];
+    if (Array.isArray(config.externals)) {
+      config.externals.push({
+        'handlebars': 'handlebars',
+        'dotprompt': 'dotprompt',
+      });
+    }
+
+    // Ignore problematic modules during server-side rendering
+    if (isServer) {
+      config.externals = config.externals || [];
+      if (Array.isArray(config.externals)) {
+        config.externals.push('handlebars', 'dotprompt');
+      }
+    }
 
     // Add chunk loading error handling
     if (!isServer && !dev) {
