@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 
 export function ThemeToggle() {
-  const { setTheme, resolvedTheme } = useTheme()
+  const { setTheme, resolvedTheme, theme } = useTheme()
   const [mounted, setMounted] = React.useState(false)
 
   // Only render after mounting to avoid hydration mismatch
@@ -22,9 +22,10 @@ export function ThemeToggle() {
 
   if (!mounted) {
     // Return a non-interactive placeholder that matches the expected size during SSR
+    // Use a neutral icon that doesn't indicate any specific theme to avoid hydration mismatch
     return (
       <Button variant="outline" size="icon" aria-label="Toggle theme" className="border-border/50 bg-background/80 backdrop-blur-sm" disabled>
-        <Sun className="h-5 w-5" />
+        <Monitor className="h-5 w-5" />
       </Button>
     )
   }
