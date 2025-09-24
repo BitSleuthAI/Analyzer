@@ -155,7 +155,13 @@ export default function RootLayout({
       <body className="font-body antialiased">
         <ErrorBoundary>
           <Suspense fallback={<div>Loading...</div>}>
-            <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+            <ThemeProvider 
+              attribute="class" 
+              defaultTheme="system" 
+              enableSystem
+              disableTransitionOnChange={false}
+              storageKey="bitsleuth-theme"
+            >
               <WalletProvider>
                 {children}
               </WalletProvider>

@@ -25,6 +25,7 @@ import { useWallet } from "@/contexts/wallet-context";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import Link from "next/link";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 
 const formSchema = z.object({
@@ -145,6 +146,11 @@ export default function ConnectWalletPage() {
 
     return (
       <main className="flex min-h-screen flex-col items-center justify-center p-8">
+        {/* Header with Theme Toggle */}
+        <header className="absolute top-0 right-0 p-4 z-50">
+          <ThemeToggle />
+        </header>
+        
         <div
           className={cn(
             "flex w-full max-w-md flex-col items-center justify-center gap-6 rounded-2xl border bg-card p-8 text-center shadow-2xl",
@@ -173,6 +179,11 @@ export default function ConnectWalletPage() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8">
+      {/* Header with Theme Toggle */}
+      <header className="absolute top-0 right-0 p-4 z-50">
+        <ThemeToggle />
+      </header>
+      
       <div className="flex w-full max-w-md flex-col items-center justify-center gap-6 rounded-2xl border bg-card p-8 shadow-2xl shadow-primary/10">
         <div className="flex flex-col items-center gap-2 text-center">
             <div className="mb-2 h-12 w-12 rounded-full grid place-items-center bg-white dark:bg-transparent">
@@ -183,6 +194,9 @@ export default function ConnectWalletPage() {
             </h1>
             <p className="text-muted-foreground font-normal max-w-md">
                 The most advanced AI-powered Bitcoin wallet security analyzer. Get comprehensive insights into your Bitcoin wallet's security, privacy, and transaction patterns instantly.
+            </p>
+            <p className="text-muted-foreground font-normal max-w-md">
+                Enter a Bitcoin xpub key to get AI-powered insights.
             </p>
         </div>
 

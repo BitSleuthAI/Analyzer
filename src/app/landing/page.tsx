@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { 
   Shield, 
   Brain, 
@@ -88,6 +89,11 @@ const benefits = [
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
+      {/* Header with Theme Toggle */}
+      <header className="absolute top-0 right-0 p-4 z-10">
+        <ThemeToggle />
+      </header>
+      
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-16 text-center">
         <div className="max-w-4xl mx-auto">

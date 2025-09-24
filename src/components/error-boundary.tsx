@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import React, { Component, ErrorInfo, ReactNode, useEffect } from 'react';
 import { handleChunkError } from '@/lib/chunk-retry-service';
 
 interface Props {
@@ -17,6 +17,55 @@ export class ErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false,
   };
+
+  componentDidMount() {
+    // Set up global error listeners for chunk loading errors
+    const handleGlobalError = (event: ErrorEvent) => {
+      // Skip favicon and other static resource errors
+      if (event.filename?.includes('favicon.ico') || 
+          event.filename?.includes('.ico') ||
+          event.filename?.includes('.png') ||
+          event.filename?.includes('.jpg') ||
+          event.filename?.includes('.svg')) {
+        return;
+      }
+      
+      if (event.error && (
+        event.error.message?.includes('Loading chunk') ||
+        event.error.name === 'ChunkLoadError' ||
+        event.message?.includes('Loading chunk')
+      )) {
+        handleChunkError(event.error);
+      }
+    };
+
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      if (event.reason && (
+        event.reason.message?.includes('Loading chunk') ||
+        event.reason.name === 'ChunkLoadError'
+      )) {
+        handleChunkError(event.reason);
+      }
+    };
+
+    // Listen for errors
+    window.addEventListener('error', handleGlobalError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+
+    // Store cleanup function
+    this.cleanup = () => {
+      window.removeEventListener('error', handleGlobalError);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }
+
+  componentWillUnmount() {
+    if (this.cleanup) {
+      this.cleanup();
+    }
+  }
+
+  private cleanup?: () => void;
 
   public static getDerivedStateFromError(error: Error): State {
     // Don't show fallback UI for chunk loading errors that will be handled by retry service
