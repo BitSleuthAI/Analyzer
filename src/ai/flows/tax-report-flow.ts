@@ -57,17 +57,46 @@ export type TaxReportOutput = z.infer<typeof TaxReportOutputSchema>;
 async function getDailyPrices(startDate: Date, endDate: Date, currency: Currency): Promise<Record<string, number>> {
     const prices: Record<string, number> = {};
     
-    // Ensure we don't exceed CoinGecko's 365-day limit for free API
-    const today = new Date();
-    const maxAllowedStartDate = subDays(today, 365);
+    // Ensure consistent date handling - use startOfDay for all date comparisons
+    const today = startOfDay(new Date());
+    // Use 364 days instead of 365 to account for inclusive date counting in CoinGecko API
+    const maxAllowedStartDate = subDays(today, 364);
+    
+    // Check if the requested range exceeds CoinGecko's 364-day limit
+    if (startDate < maxAllowedStartDate) {
+        const requestedDays = differenceInDays(endDate, startDate);
+        const availableDays = differenceInDays(endDate, maxAllowedStartDate);
+        
+        if (requestedDays > 364) {
+            console.warn(`CoinGecko API: Requested ${requestedDays} days of data, but only ${availableDays} days are available due to 364-day limit.`);
+            console.warn(`Data will be provided from ${format(maxAllowedStartDate, 'yyyy-MM-dd')} to ${format(endDate, 'yyyy-MM-dd')}`);
+        }
+        
+        // If both dates are older than 364 days, throw an error
+        if (endDate < maxAllowedStartDate) {
+            throw new Error(`CoinGecko API: Both start date (${format(startDate, 'yyyy-MM-dd')}) and end date (${format(endDate, 'yyyy-MM-dd')}) are older than 364 days. Historical data is not available for this range.`);
+        }
+    }
+    
+    // Strictly enforce the 364-day limit - never request data older than this
     const actualStartDate = startDate < maxAllowedStartDate ? maxAllowedStartDate : startDate;
     
-    console.log(`CoinGecko API: Requesting data from ${format(actualStartDate, 'yyyy-MM-dd')} to ${format(endDate, 'yyyy-MM-dd')}`);
+    // Double-check: if the adjusted start date is still too old, use the max allowed date
+    const finalStartDate = actualStartDate < maxAllowedStartDate ? maxAllowedStartDate : actualStartDate;
     
-    let currentStartDate = actualStartDate;
+    console.log(`CoinGecko API: Requesting data from ${format(finalStartDate, 'yyyy-MM-dd')} to ${format(endDate, 'yyyy-MM-dd')}`);
+    
+    let currentStartDate = finalStartDate;
 
     try {
         while (currentStartDate <= endDate) {
+            // Safety check: ensure we never request data older than 364 days
+            if (currentStartDate < maxAllowedStartDate) {
+                console.warn(`Skipping chunk starting at ${format(currentStartDate, 'yyyy-MM-dd')} - exceeds 364-day limit`);
+                currentStartDate = addDays(currentStartDate, 90);
+                continue;
+            }
+            
             let currentEndDate = addDays(currentStartDate, 90);
             if (currentEndDate > endDate) {
                 currentEndDate = endDate;
