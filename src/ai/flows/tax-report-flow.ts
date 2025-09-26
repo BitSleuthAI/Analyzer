@@ -79,10 +79,7 @@ async function getDailyPrices(startDate: Date, endDate: Date, currency: Currency
     }
     
     // Strictly enforce the 364-day limit - never request data older than this
-    const actualStartDate = startDate < maxAllowedStartDate ? maxAllowedStartDate : startDate;
-    
-    // Double-check: if the adjusted start date is still too old, use the max allowed date
-    const finalStartDate = actualStartDate < maxAllowedStartDate ? maxAllowedStartDate : actualStartDate;
+    const finalStartDate = startDate < maxAllowedStartDate ? maxAllowedStartDate : startDate;
     
     console.log(`CoinGecko API: Requesting data from ${format(finalStartDate, 'yyyy-MM-dd')} to ${format(endDate, 'yyyy-MM-dd')}`);
     
@@ -90,12 +87,6 @@ async function getDailyPrices(startDate: Date, endDate: Date, currency: Currency
 
     try {
         while (currentStartDate <= endDate) {
-            // Safety check: ensure we never request data older than 364 days
-            if (currentStartDate < maxAllowedStartDate) {
-                console.warn(`Skipping chunk starting at ${format(currentStartDate, 'yyyy-MM-dd')} - exceeds 364-day limit`);
-                currentStartDate = addDays(currentStartDate, 90);
-                continue;
-            }
             
             let currentEndDate = addDays(currentStartDate, 90);
             if (currentEndDate > endDate) {
