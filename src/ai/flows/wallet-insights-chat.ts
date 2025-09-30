@@ -502,6 +502,7 @@ export const bitcoinPensionAnalysisTool = ai.defineTool(
       pensionAnalysis: z.object({
         timeToRetirement: z.number(),
         totalContributions: z.number(),
+        currency: z.string(),
         projectedValue: z.object({
           conservative: z.number(),
           moderate: z.number(),
@@ -634,6 +635,7 @@ export const bitcoinPensionAnalysisTool = ai.defineTool(
       pensionAnalysis: {
         timeToRetirement,
         totalContributions: Math.round(totalContributions),
+        currency: effectiveCurrency,
         projectedValue,
         scenarios,
       },
