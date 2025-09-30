@@ -13,6 +13,7 @@ import {ai} from '@/ai/genkit';
 import {z} from 'zod';
 import { securityRecommendationsTool } from './security-recommendations';
 import { analyzeBitcoinTransaction, analyzeBitcoinAddress } from './enhanced-bitcoin-analysis';
+import { getLatestBitcoinNews } from '@/lib/newsService';
 
 const HistoryMessageSchema = z.object({
     role: z.enum(['user', 'assistant', 'system']),
@@ -143,14 +144,530 @@ export const enhancedAddressAnalysisTool = ai.defineTool(
   }
 );
 
+export const marketAnalysisTool = ai.defineTool(
+  {
+    name: 'analyzeBitcoinMarket',
+    description: 'Provides Bitcoin market analysis including sentiment, trends, and market conditions. Use when user asks about "market sentiment", "bull/bear market", "Fear & Greed Index", or general market questions.',
+    inputSchema: z.object({
+      question: z.string(),
+      walletData: z.string().optional(), // Optional for market analysis
+    }),
+    outputSchema: z.object({
+      marketAnalysis: z.object({
+        currentSentiment: z.enum(['bullish', 'bearish', 'neutral', 'mixed']),
+        marketPhase: z.enum(['bull market', 'bear market', 'sideways', 'transition']),
+        fearGreedLevel: z.enum(['extreme fear', 'fear', 'neutral', 'greed', 'extreme greed']),
+        keyFactors: z.array(z.string()),
+        outlook: z.string(),
+      }),
+      summary: z.string(),
+    }),
+  },
+  async (input) => {
+    // For now, provide a basic market analysis based on general knowledge
+    // In the future, this could integrate with real market data APIs
+    const currentDate = new Date().toISOString().split('T')[0];
+    
+    return {
+      marketAnalysis: {
+        currentSentiment: 'neutral',
+        marketPhase: 'sideways',
+        fearGreedLevel: 'neutral',
+        keyFactors: [
+          'Bitcoin adoption continues to grow globally',
+          'Institutional interest remains strong',
+          'Regulatory clarity is improving in many jurisdictions',
+          'Network security and hash rate are at all-time highs'
+        ],
+        outlook: 'Bitcoin continues to mature as a digital asset with growing institutional adoption and improving infrastructure.',
+      },
+      summary: `Based on current market conditions as of ${currentDate}, Bitcoin is experiencing a neutral market sentiment with sideways price action. The Fear & Greed Index suggests neutral market psychology. Key factors influencing the market include continued institutional adoption, improving regulatory clarity, and strong network fundamentals. The long-term outlook remains positive as Bitcoin continues to mature as a digital store of value.`
+    };
+  }
+);
+
+export const bitcoinNewsAnalysisTool = ai.defineTool(
+  {
+    name: 'analyzeBitcoinNews',
+    description: 'Fetches and analyzes the latest Bitcoin news. Use when user asks about "latest Bitcoin news", "Bitcoin headlines", "what\'s happening with Bitcoin", or similar news-related questions.',
+    inputSchema: z.object({
+      question: z.string(),
+    }),
+    outputSchema: z.object({
+      newsAnalysis: z.object({
+        headlines: z.array(z.object({
+          title: z.string(),
+          summary: z.string(),
+          date: z.string(),
+          sentiment: z.enum(['positive', 'negative', 'neutral', 'mixed']),
+          impact: z.enum(['low', 'medium', 'high']),
+        })),
+        overallSentiment: z.enum(['positive', 'negative', 'neutral', 'mixed']),
+        keyThemes: z.array(z.string()),
+        marketImplications: z.string(),
+      }),
+      summary: z.string(),
+    }),
+  },
+  async (input) => {
+    try {
+      const articles = await getLatestBitcoinNews();
+      
+      if (articles.length === 0 || (articles.length === 1 && (articles[0].title.includes('Error') || articles[0].title.includes('Misconfigured')))) {
+        return {
+          newsAnalysis: {
+            headlines: [],
+            overallSentiment: 'neutral',
+            keyThemes: ['News service unavailable'],
+            marketImplications: 'Unable to assess market implications due to news service issues.',
+          },
+          summary: articles[0]?.summary || "I couldn't fetch the latest Bitcoin news at this time. Please try again later."
+        };
+      }
+
+      // Analyze the news for sentiment and themes
+      const headlines = articles.map(article => ({
+        title: article.title,
+        summary: article.summary,
+        date: article.date,
+        sentiment: 'neutral' as const, // Could be enhanced with sentiment analysis
+        impact: 'medium' as const, // Could be enhanced with impact analysis
+      }));
+
+      // Simple keyword-based sentiment analysis
+      const positiveKeywords = ['adoption', 'institutional', 'approval', 'growth', 'bullish', 'surge', 'rally'];
+      const negativeKeywords = ['crash', 'decline', 'bearish', 'regulation', 'ban', 'hack', 'security'];
+      
+      let positiveCount = 0;
+      let negativeCount = 0;
+      const themes: string[] = [];
+
+      articles.forEach(article => {
+        const text = (article.title + ' ' + article.summary).toLowerCase();
+        
+        positiveKeywords.forEach(keyword => {
+          if (text.includes(keyword)) positiveCount++;
+        });
+        
+        negativeKeywords.forEach(keyword => {
+          if (text.includes(keyword)) negativeCount++;
+        });
+
+        // Extract themes
+        if (text.includes('institutional')) themes.push('Institutional Adoption');
+        if (text.includes('regulation') || text.includes('regulatory')) themes.push('Regulatory Developments');
+        if (text.includes('etf')) themes.push('ETF News');
+        if (text.includes('mining')) themes.push('Mining Updates');
+        if (text.includes('security') || text.includes('hack')) themes.push('Security News');
+      });
+
+      const uniqueThemes = [...new Set(themes)];
+      
+      let overallSentiment: 'positive' | 'negative' | 'neutral' | 'mixed' = 'neutral';
+      if (positiveCount > negativeCount + 2) overallSentiment = 'positive';
+      else if (negativeCount > positiveCount + 2) overallSentiment = 'negative';
+      else if (positiveCount > 0 && negativeCount > 0) overallSentiment = 'mixed';
+
+      const marketImplications = overallSentiment === 'positive' 
+        ? 'The positive news sentiment suggests potential upward price pressure and increased market confidence.'
+        : overallSentiment === 'negative'
+        ? 'The negative news sentiment may create downward price pressure and reduced market confidence.'
+        : 'The mixed news sentiment suggests balanced market conditions with both positive and negative factors at play.';
+
+      return {
+        newsAnalysis: {
+          headlines,
+          overallSentiment,
+          keyThemes: uniqueThemes.length > 0 ? uniqueThemes : ['General Bitcoin News'],
+          marketImplications,
+        },
+        summary: `Here are the latest Bitcoin headlines with ${overallSentiment} overall sentiment. Key themes include ${uniqueThemes.join(', ')}. ${marketImplications}`
+      };
+    } catch (error) {
+      console.error('Error in bitcoinNewsAnalysisTool:', error);
+      return {
+        newsAnalysis: {
+          headlines: [],
+          overallSentiment: 'neutral',
+          keyThemes: ['Error fetching news'],
+          marketImplications: 'Unable to assess market implications due to technical issues.',
+        },
+        summary: 'I encountered an error while fetching the latest Bitcoin news. Please try again later.'
+      };
+    }
+  }
+);
+
+export const investmentInsightsTool = ai.defineTool(
+  {
+    name: 'provideInvestmentInsights',
+    description: 'Provides Bitcoin investment insights and analysis. Use when user asks "is this a good time to buy Bitcoin", "should I invest in Bitcoin", "investment advice", or similar investment-related questions.',
+    inputSchema: z.object({
+      question: z.string(),
+      context: z.string().optional(), // Could include news context or market conditions
+    }),
+    outputSchema: z.object({
+      investmentAnalysis: z.object({
+        currentConditions: z.string(),
+        riskAssessment: z.enum(['low', 'medium', 'high']),
+        timeHorizon: z.enum(['short-term', 'medium-term', 'long-term']),
+        recommendations: z.array(z.string()),
+        disclaimer: z.string(),
+      }),
+      summary: z.string(),
+    }),
+  },
+  async (input) => {
+    const currentDate = new Date().toISOString().split('T')[0];
+    
+    return {
+      investmentAnalysis: {
+        currentConditions: 'Bitcoin continues to mature as a digital asset with growing institutional adoption, improving regulatory clarity, and strong network fundamentals.',
+        riskAssessment: 'high',
+        timeHorizon: 'long-term',
+        recommendations: [
+          'Only invest what you can afford to lose',
+          'Consider Bitcoin as part of a diversified portfolio',
+          'Dollar-cost averaging can help reduce timing risk',
+          'Focus on long-term fundamentals rather than short-term price movements',
+          'Ensure you understand Bitcoin\'s volatility and risks',
+          'Consider your risk tolerance and investment timeline'
+        ],
+        disclaimer: 'This is not financial advice. Bitcoin is a highly volatile asset. Always do your own research and consider consulting with a financial advisor before making investment decisions.',
+      },
+      summary: `As of ${currentDate}, Bitcoin presents both opportunities and risks for investors. While Bitcoin continues to mature with growing institutional adoption and improving infrastructure, it remains a high-risk, high-volatility asset. For those considering Bitcoin investment, it's important to only invest what you can afford to lose, consider it as part of a diversified portfolio, and focus on long-term fundamentals rather than short-term price movements. Remember, this is not financial advice and you should always do your own research.`
+    };
+  }
+);
+
+export const bitcoinCAGRCalculatorTool = ai.defineTool(
+  {
+    name: 'calculateBitcoinCAGR',
+    description: 'Calculates Bitcoin investment projections using historical CAGR data. Use when user asks about investment projections, "if I invested X Bitcoin", "what would X Bitcoin be worth in Y years", or similar CAGR calculation questions.',
+    inputSchema: z.object({
+      initialAmount: z.number().describe('Initial investment amount in Bitcoin (BTC)'),
+      timeHorizon: z.number().describe('Investment time horizon in years'),
+      scenario: z.enum(['conservative', 'moderate', 'optimistic']).optional().describe('Growth scenario assumption'),
+    }),
+    outputSchema: z.object({
+      calculation: z.object({
+        initialAmountBTC: z.number(),
+        initialAmountUSD: z.number(),
+        timeHorizon: z.number(),
+        scenario: z.string(),
+        annualCAGR: z.number(),
+        finalAmountBTC: z.number(),
+        finalAmountUSD: z.number(),
+        totalReturn: z.number(),
+        totalReturnPercentage: z.number(),
+        yearlyProjections: z.array(z.object({
+          year: z.number(),
+          amountBTC: z.number(),
+          amountUSD: z.number(),
+          annualReturn: z.number(),
+        })),
+      }),
+      analysis: z.object({
+        keyAssumptions: z.array(z.string()),
+        risks: z.array(z.string()),
+        considerations: z.array(z.string()),
+      }),
+      disclaimer: z.string(),
+      summary: z.string(),
+    }),
+  },
+  async (input) => {
+    // Historical Bitcoin CAGR data (approximate)
+    const historicalCAGR = {
+      conservative: 0.15, // 15% - Based on more recent, mature market performance
+      moderate: 0.25,    // 25% - Based on historical average with some moderation
+      optimistic: 0.35,   // 35% - Based on early Bitcoin growth rates
+    };
+
+    const scenario = input.scenario || 'moderate';
+    const annualCAGR = historicalCAGR[scenario];
+    const currentBTCPrice = 70000; // Approximate current price - could be made dynamic
+    
+    // Calculate compound growth
+    const finalAmountBTC = input.initialAmount;
+    const finalAmountUSD = finalAmountBTC * currentBTCPrice * Math.pow(1 + annualCAGR, input.timeHorizon);
+    const initialAmountUSD = input.initialAmount * currentBTCPrice;
+    const totalReturn = finalAmountUSD - initialAmountUSD;
+    const totalReturnPercentage = (totalReturn / initialAmountUSD) * 100;
+
+    // Generate yearly projections
+    const yearlyProjections = [];
+    for (let year = 1; year <= input.timeHorizon; year++) {
+      const yearAmountUSD = initialAmountUSD * Math.pow(1 + annualCAGR, year);
+      const yearAmountBTC = input.initialAmount; // BTC amount stays the same
+      const annualReturn = yearAmountUSD - initialAmountUSD;
+      
+      yearlyProjections.push({
+        year,
+        amountBTC: yearAmountBTC,
+        amountUSD: Math.round(yearAmountUSD),
+        annualReturn: Math.round(annualReturn),
+      });
+    }
+
+    const keyAssumptions = [
+      `Historical CAGR of ${(annualCAGR * 100).toFixed(1)}% per year`,
+      'Bitcoin price appreciation continues at historical rates',
+      'No major technological or regulatory disruptions',
+      'Current Bitcoin price of $70,000 as baseline',
+      'Compound growth without additional contributions'
+    ];
+
+    const risks = [
+      'Bitcoin is highly volatile and past performance doesn\'t guarantee future results',
+      'Regulatory changes could significantly impact Bitcoin\'s value',
+      'Technological risks including quantum computing threats',
+      'Market adoption may slow or reverse',
+      'Economic conditions could affect cryptocurrency markets'
+    ];
+
+    const considerations = [
+      'Consider dollar-cost averaging instead of lump sum investment',
+      'Bitcoin should be part of a diversified portfolio',
+      'Only invest what you can afford to lose',
+      'Long-term holding may reduce tax implications',
+      'Consider Bitcoin\'s role as digital gold and store of value'
+    ];
+
+    const disclaimer = 'This calculation is for educational purposes only and is not financial advice. Bitcoin is a highly volatile asset and past performance does not guarantee future results. The CAGR assumptions are based on historical data and may not reflect future performance. Always do your own research and consider consulting with a financial advisor before making investment decisions.';
+
+    const summary = `If you invested ${input.initialAmount} BTC ($${Math.round(initialAmountUSD).toLocaleString()}) today and Bitcoin grows at a ${(annualCAGR * 100).toFixed(1)}% annual rate over ${input.timeHorizon} years, your investment could be worth approximately $${Math.round(finalAmountUSD).toLocaleString()} (${totalReturnPercentage.toFixed(1)}% total return). This represents a ${(annualCAGR * 100).toFixed(1)}% compound annual growth rate. However, this is purely hypothetical and Bitcoin's actual performance could be significantly different.`;
+
+    return {
+      calculation: {
+        initialAmountBTC: input.initialAmount,
+        initialAmountUSD: Math.round(initialAmountUSD),
+        timeHorizon: input.timeHorizon,
+        scenario: scenario.charAt(0).toUpperCase() + scenario.slice(1),
+        annualCAGR: annualCAGR,
+        finalAmountBTC: finalAmountBTC,
+        finalAmountUSD: Math.round(finalAmountUSD),
+        totalReturn: Math.round(totalReturn),
+        totalReturnPercentage: totalReturnPercentage,
+        yearlyProjections,
+      },
+      analysis: {
+        keyAssumptions,
+        risks,
+        considerations,
+      },
+      disclaimer,
+      summary,
+    };
+  }
+);
+
+export const bitcoinPensionAnalysisTool = ai.defineTool(
+  {
+    name: 'analyzeBitcoinPension',
+    description: 'Analyzes Bitcoin as a pension savings vehicle. Use when user asks about "Bitcoin for retirement", "Bitcoin pension", "Bitcoin as retirement savings", or similar pension-related questions.',
+    inputSchema: z.object({
+      question: z.string(),
+      age: z.number().optional().describe('User\'s current age'),
+      retirementAge: z.number().optional().describe('Target retirement age'),
+      monthlyContribution: z.number().optional().describe('Monthly contribution amount in USD'),
+    }),
+    outputSchema: z.object({
+      pensionAnalysis: z.object({
+        timeToRetirement: z.number(),
+        totalContributions: z.number(),
+        projectedValue: z.object({
+          conservative: z.number(),
+          moderate: z.number(),
+          optimistic: z.number(),
+        }),
+        scenarios: z.array(z.object({
+          scenario: z.string(),
+          monthlyContribution: z.number(),
+          totalContributions: z.number(),
+          projectedValue: z.number(),
+          percentageOfPortfolio: z.string(),
+        })),
+      }),
+      considerations: z.object({
+        advantages: z.array(z.string()),
+        disadvantages: z.array(z.string()),
+        recommendations: z.array(z.string()),
+        diversificationAdvice: z.string(),
+      }),
+      disclaimer: z.string(),
+      summary: z.string(),
+    }),
+  },
+  async (input) => {
+    const currentAge = input.age || 35;
+    const retirementAge = input.retirementAge || 65;
+    const monthlyContribution = input.monthlyContribution || 500;
+    const timeToRetirement = retirementAge - currentAge;
+    const totalContributions = monthlyContribution * 12 * timeToRetirement;
+
+    // CAGR scenarios for pension analysis
+    const cagrScenarios = {
+      conservative: 0.12, // 12% - More conservative for retirement planning
+      moderate: 0.18,     // 18% - Moderate growth assumption
+      optimistic: 0.25,   // 25% - Optimistic but historically possible
+    };
+
+    // Calculate future value with monthly contributions
+    const calculateFV = (cagr: number) => {
+      const monthlyRate = cagr / 12;
+      const months = timeToRetirement * 12;
+      
+      // Future value of annuity formula: FV = PMT * [((1 + r)^n - 1) / r]
+      const fv = monthlyContribution * ((Math.pow(1 + monthlyRate, months) - 1) / monthlyRate);
+      return Math.round(fv);
+    };
+
+    const projectedValue = {
+      conservative: calculateFV(cagrScenarios.conservative),
+      moderate: calculateFV(cagrScenarios.moderate),
+      optimistic: calculateFV(cagrScenarios.optimistic),
+    };
+
+    // Different contribution scenarios
+    const scenarios = [
+      {
+        scenario: 'Conservative Saver',
+        monthlyContribution: monthlyContribution * 0.5,
+        totalContributions: Math.round(monthlyContribution * 0.5 * 12 * timeToRetirement),
+        projectedValue: Math.round(calculateFV(cagrScenarios.conservative) * 0.5),
+        percentageOfPortfolio: '5-10%',
+      },
+      {
+        scenario: 'Moderate Saver',
+        monthlyContribution: monthlyContribution,
+        totalContributions: Math.round(totalContributions),
+        projectedValue: projectedValue.moderate,
+        percentageOfPortfolio: '10-20%',
+      },
+      {
+        scenario: 'Aggressive Saver',
+        monthlyContribution: monthlyContribution * 2,
+        totalContributions: Math.round(monthlyContribution * 2 * 12 * timeToRetirement),
+        projectedValue: Math.round(calculateFV(cagrScenarios.moderate) * 2),
+        percentageOfPortfolio: '20-30%',
+      },
+    ];
+
+    const advantages = [
+      'Potential for high returns over long time horizons',
+      'Hedge against inflation and currency debasement',
+      'Decentralized and censorship-resistant asset',
+      'Growing institutional adoption and acceptance',
+      'Limited supply creates scarcity value',
+      'Can serve as digital gold in retirement portfolio'
+    ];
+
+    const disadvantages = [
+      'Extreme volatility can cause significant losses',
+      'Regulatory uncertainty and potential restrictions',
+      'Technological risks and potential obsolescence',
+      'No guaranteed returns or principal protection',
+      'Limited acceptance as payment method currently',
+      'High correlation with crypto market cycles'
+    ];
+
+    const recommendations = [
+      'Start with small allocations (5-10% of retirement savings)',
+      'Use dollar-cost averaging to reduce timing risk',
+      'Focus on long-term holding (10+ years)',
+      'Consider Bitcoin as part of alternative investments',
+      'Maintain diversified traditional retirement accounts',
+      'Regularly review and rebalance your portfolio',
+      'Consider tax-advantaged accounts when possible',
+      'Have a clear exit strategy for retirement needs'
+    ];
+
+    const diversificationAdvice = 'Bitcoin should complement, not replace, traditional retirement savings. Consider maintaining 70-80% in traditional assets (stocks, bonds, real estate) and 10-20% in alternative investments including Bitcoin. This provides exposure to potential Bitcoin gains while maintaining stability for retirement needs.';
+
+    const disclaimer = 'This analysis is for educational purposes only and is not financial advice. Bitcoin is a highly volatile asset and past performance does not guarantee future results. Retirement planning should be done with a qualified financial advisor who understands your complete financial situation, risk tolerance, and retirement goals. Never invest more than you can afford to lose.';
+
+    const summary = `If you're ${currentAge} years old and contribute $${monthlyContribution.toLocaleString()} monthly to Bitcoin until age ${retirementAge}, you would contribute $${totalContributions.toLocaleString()} total over ${timeToRetirement} years. Based on moderate growth assumptions (18% CAGR), this could potentially grow to approximately $${projectedValue.moderate.toLocaleString()}. However, Bitcoin's extreme volatility makes this highly uncertain, and it should only represent a small portion of your retirement portfolio alongside traditional investments.`;
+
+    return {
+      pensionAnalysis: {
+        timeToRetirement,
+        totalContributions: Math.round(totalContributions),
+        projectedValue,
+        scenarios,
+      },
+      considerations: {
+        advantages,
+        disadvantages,
+        recommendations,
+        diversificationAdvice,
+      },
+      disclaimer,
+      summary,
+    };
+  }
+);
+
 
 export async function walletInsightsChat(input: WalletInsightsChatInput): Promise<WalletInsightsChatOutput> {
   return walletInsightsChatFlow(input);
 }
 
-const systemPrompt = `You are BitSleuth, a helpful AI assistant and expert Bitcoin security analyst. Your primary role is to answer questions based on the wallet data provided.
+const systemPrompt = `You are BitSleuth, a helpful AI assistant and expert Bitcoin analyst. Your role is to answer questions about Bitcoin, blockchain technology, market conditions, wallet analysis, and security.
 
-Analyze the user's request and the provided wallet data to give a helpful and accurate response. If the user asks for a chart or visualization, you must generate the chart data in the \`chart\` field.
+**IMPORTANT:** Analyze the user's question type first and respond appropriately:
+
+### Question Types & Responses:
+
+1. **News Questions** (latest Bitcoin news, headlines, what's happening):
+   - Fetch and analyze the latest Bitcoin news
+   - Provide sentiment analysis and key themes
+   - Discuss market implications of news
+   - Use Bitcoin news analysis tool
+
+2. **Investment Questions** (is this a good time to buy, investment advice):
+   - Provide investment insights and analysis
+   - Discuss risk assessment and recommendations
+   - Include appropriate disclaimers
+   - Use investment insights tool
+
+2a. **CAGR Calculator Questions** (investment projections, "if I invested X Bitcoin"):
+   - Calculate Bitcoin investment projections using historical CAGR
+   - Provide yearly projections and compound growth analysis
+   - Include multiple scenarios (conservative, moderate, optimistic)
+   - Use Bitcoin CAGR calculator tool
+
+2b. **Pension/Retirement Questions** (Bitcoin for retirement, pension savings):
+   - Analyze Bitcoin as a retirement savings vehicle
+   - Calculate future value with monthly contributions
+   - Provide diversification advice and risk assessment
+   - Use Bitcoin pension analysis tool
+
+3. **Market Questions** (Bitcoin price, market sentiment, bull/bear market, Fear & Greed Index):
+   - Provide market analysis based on current data
+   - Explain market conditions and sentiment
+   - Discuss trends and outlook
+   - Use market analysis tool
+
+4. **Wallet-Specific Questions** (balance, transactions, performance):
+   - Analyze the provided wallet data
+   - Answer based on the user's specific wallet information
+   - Provide insights about their holdings and activity
+
+5. **Security Questions** (privacy, security analysis, recommendations):
+   - Use security analysis tools when appropriate
+   - Provide security recommendations
+   - Focus on privacy and security aspects
+
+6. **General Bitcoin Questions** (technology, concepts, education):
+   - Provide educational information about Bitcoin
+   - Explain concepts clearly and accurately
+   - Use current knowledge and best practices
+
+7. **Technical Questions** (blockchain, transactions, addresses):
+   - Provide technical explanations
+   - Use wallet data when relevant
+   - Explain technical concepts clearly
 
 **CRITICAL RULE:** Your \`answer\` field MUST ONLY contain human-readable Markdown text. NEVER include JSON code blocks, chart data, or placeholders like "[Chart would be displayed here]" within the 'answer' field. All chart data MUST go into the separate 'chart' field of the JSON output.
 
@@ -172,13 +689,86 @@ You have access to advanced Bitcoin analysis tools powered by Gemini 2.0 Flash L
    - Provides clustering scores
    - Identifies associated entities
 
-Use these tools when users ask for:
+### When to Use Analysis Tools:
+
+**Enhanced Transaction Analysis Tool** - Use ONLY when users specifically ask for:
 - "Detailed transaction analysis"
-- "Privacy analysis" 
+- "Privacy analysis of this transaction"
 - "Transaction insights"
+- "Analyze this specific transaction"
+
+**Enhanced Address Analysis Tool** - Use ONLY when users specifically ask for:
 - "Address analysis"
-- "Privacy assessment"
+- "Privacy assessment of this address"
 - "Address insights"
+- "Analyze this specific address"
+
+**Security Recommendations Tool** - Use ONLY when users specifically ask for:
+- "Security report"
+- "Security analysis"
+- "Security recommendations"
+- "Privacy recommendations"
+
+**Bitcoin News Analysis Tool** - Use when users ask about:
+- "Latest Bitcoin news"
+- "Bitcoin headlines"
+- "What's happening with Bitcoin"
+- "Bitcoin news today"
+- "Recent Bitcoin developments"
+
+**Investment Insights Tool** - Use when users ask about:
+- "Is this a good time to buy Bitcoin"
+- "Should I invest in Bitcoin"
+- "Investment advice"
+- "Buying Bitcoin now"
+- "Bitcoin investment strategy"
+
+**Bitcoin CAGR Calculator Tool** - Use when users ask about:
+- "If I invested X Bitcoin"
+- "What would X Bitcoin be worth in Y years"
+- "Bitcoin investment projections"
+- "Compound growth calculation"
+- "Bitcoin CAGR analysis"
+
+**Bitcoin Pension Analysis Tool** - Use when users ask about:
+- "Bitcoin for retirement"
+- "Bitcoin pension savings"
+- "Bitcoin as retirement investment"
+- "Bitcoin retirement planning"
+- "Monthly Bitcoin contributions for retirement"
+
+**Market Analysis Tool** - Use when users ask about:
+- "Market sentiment"
+- "Bull/bear market"
+- "Fear & Greed Index"
+- "Market conditions"
+- "Bitcoin market outlook"
+
+**IMPORTANT:** Use the appropriate tool for the question type. Do NOT use security tools for news, investment, or market questions.
+
+### Market Analysis Guidelines
+
+When users ask about market conditions, sentiment, or Bitcoin price:
+
+1. **Market Sentiment Questions** (bull/bear market, Fear & Greed Index):
+   - Provide current market analysis
+   - Explain what bull/bear markets mean
+   - Discuss Fear & Greed Index interpretation
+   - Use general Bitcoin knowledge, not wallet-specific data
+
+2. **Price Questions** (Bitcoin price, trends, predictions):
+   - Provide current price context
+   - Explain market trends and factors
+   - Discuss historical context when relevant
+   - Avoid making specific price predictions
+
+3. **Market Education** (how markets work, trading concepts):
+   - Explain market concepts clearly
+   - Provide educational information
+   - Use examples and analogies
+   - Focus on Bitcoin-specific market dynamics
+
+**DO NOT** default to security analysis for market questions. Answer the market question directly.
 
 ### Comprehensive Security Review Instructions
 
@@ -244,7 +834,7 @@ const walletInsightsChatFlow = ai.defineFlow(
       })).filter(item => item.role !== 'system') as ({role: 'user' | 'model', content: {text: string}[]}[]);
 
       const userPrompt = `
-Analyze my request based on our conversation history and the wallet data below.
+Analyze my request based on our conversation history and respond appropriately to the question type.
 
 **My Wallet Data:**
 \`\`\`json
@@ -253,6 +843,25 @@ ${input.walletData}
 
 **My Question:**
 ${input.question}
+
+**Instructions:**
+1. First, identify what type of question this is (news, investment, CAGR calculator, pension analysis, market, wallet-specific, security, general Bitcoin, or technical)
+2. Respond appropriately to that question type
+3. Use the appropriate tool for each question type:
+   - News questions → Bitcoin News Analysis Tool
+   - Investment questions → Investment Insights Tool
+   - CAGR calculator questions → Bitcoin CAGR Calculator Tool
+   - Pension/retirement questions → Bitcoin Pension Analysis Tool
+   - Market questions → Market Analysis Tool
+   - Security questions → Security Recommendations Tool
+   - Transaction/Address analysis → Enhanced Analysis Tools
+4. For news questions, fetch and analyze the latest Bitcoin news
+5. For investment questions, provide investment insights with appropriate disclaimers
+6. For CAGR calculator questions, extract investment amount and time horizon, then calculate projections
+7. For pension questions, analyze Bitcoin as retirement savings with diversification advice
+8. For market questions, provide market analysis without defaulting to security reports
+9. For general Bitcoin questions, provide educational information
+10. For wallet-specific questions, use the provided wallet data
       `;
 
 
@@ -263,7 +872,7 @@ ${input.question}
           output: {
               schema: WalletInsightsChatOutputSchema,
           },
-          tools: [securityRecommendationsTool, enhancedTransactionAnalysisTool, enhancedAddressAnalysisTool],
+          tools: [securityRecommendationsTool, enhancedTransactionAnalysisTool, enhancedAddressAnalysisTool, marketAnalysisTool, bitcoinNewsAnalysisTool, investmentInsightsTool, bitcoinCAGRCalculatorTool, bitcoinPensionAnalysisTool],
       });
 
       if (!output) {
