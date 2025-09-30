@@ -529,9 +529,20 @@ export const bitcoinPensionAnalysisTool = ai.defineTool(
     const currentAge = input.age || 35;
     const retirementAge = input.retirementAge || 65;
     const monthlyContribution = input.monthlyContribution || 500;
+    
+    // Currency conversion rates (approximate - in production, use real-time rates)
+    const currencyRates = {
+      USD: 70000,
+      EUR: 65000, // Approximate EUR/USD rate of 0.93
+      GBP: 56000, // Approximate GBP/USD rate of 0.80
+      CAD: 95000, // Approximate CAD/USD rate of 1.36
+      AUD: 105000, // Approximate AUD/USD rate of 1.50
+      JPY: 10500000, // Approximate JPY/USD rate of 150
+    };
+
     const inputCurrency = input.currency || 'USD';
     const currency = inputCurrency.toUpperCase();
-    const effectiveCurrency = currency; // For pension analysis, we'll use the same logic
+    const effectiveCurrency = currencyRates[currency as keyof typeof currencyRates] ? currency : 'USD';
     const timeToRetirement = retirementAge - currentAge;
     const totalContributions = monthlyContribution * 12 * timeToRetirement;
 
