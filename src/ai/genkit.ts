@@ -12,11 +12,6 @@ if (process.env.NODE_ENV === 'production') {
 export const ai = genkit({
   plugins: [googleAI({
     apiKey: process.env.GOOGLE_GENAI_API_KEY, // Explicitly set API key
-//    config: {
-//      thinkingConfig: {
-//        thinkingBudget: 0, // Disables thinking
-//      },
-//    },
   })],
   model: 'googleai/gemini-2.0-flash-lite', // Use stable model name
 });
