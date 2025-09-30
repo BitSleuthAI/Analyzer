@@ -162,12 +162,12 @@ function SecurityMetric({ icon, title, value, description, level, levelText, too
       <CardContent className="flex flex-col h-full">
         <div className="text-2xl font-bold">{value}</div>
         <p className="text-xs text-muted-foreground font-normal">{description}</p>
-        <div className="flex-1"></div>
-        <div className="flex justify-start">
+        <div className="flex justify-start mt-3">
           {level && (
               <Badge variant="outline" className={cn('w-fit', levelClasses[level])}>{level} {levelText ?? 'Risk'}</Badge>
           )}
         </div>
+        <div className="flex-1"></div>
       </CardContent>
     </Card>
   );
@@ -333,8 +333,7 @@ export default function SecurityPage() {
             <CardContent className="flex flex-col h-full">
                 <div className="text-2xl font-bold mb-2">Share</div>
                 <div className="text-xs text-muted-foreground font-normal">Help others improve their Bitcoin privacy.</div>
-                <div className="flex-1"></div>
-                <div className="flex justify-start">
+                <div className="flex justify-start mt-3">
                  <AlertDialog>
                     <AlertDialogTrigger asChild>
                         <Button
@@ -395,6 +394,7 @@ export default function SecurityPage() {
                 </AlertDialog>
                 {!nostrNpub && <div className="text-xs text-center text-muted-foreground mt-2 font-normal">Connect Nostr to share.</div>}
                 </div>
+                <div className="flex-1"></div>
             </CardContent>
         </Card>
       </div>
