@@ -40,6 +40,7 @@ next-env.d.ts
 .genkit/*
 .env*
 .env.local
+.DS_Store
 
 # firebase
 firebase-debug.log
