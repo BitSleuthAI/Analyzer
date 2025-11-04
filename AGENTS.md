@@ -109,7 +109,12 @@ Analyzer/
 │   │   ├── firebase.ts          # Firebase initialization
 │   │   ├── bitcoin-init.ts      # Bitcoin library initialization
 │   │   ├── cache-utils.ts       # Client-side caching
+│   │   ├── chunk-retry-service.ts # Chunked data fetching with retry
 │   │   ├── exchange-labels.ts   # Known exchange addresses
+│   │   ├── chainabuse.ts        # ChainAbuse API integration
+│   │   ├── logger.ts            # Logging utility
+│   │   ├── utils.ts             # General utility functions
+│   │   ├── data.ts              # Data constants
 │   │   └── types.ts             # Shared TypeScript types
 │   └── services/
 │       └── googleSheets.ts      # Google Sheets API integration
