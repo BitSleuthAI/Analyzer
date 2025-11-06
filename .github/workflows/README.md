@@ -41,7 +41,7 @@ Go to **Settings > Secrets and variables > Actions > Repository secrets** and ad
 Go to **Settings > Secrets and variables > Actions > Repository variables** and add:
 
 - `TEST_XPUB` - Test Bitcoin XPUB for wallet testing
-  - Example: `xpub6CEQk77kfNhrQt2amZe1Bf7sb543ca6aYrYZ7VSWMrnexBCUyFUwPTzEFekPhWUEFKtTBmjUGXpbkF6Jhvoj2Ns2VKWwqTzmJZM2eAzmPp4`
+  - Example: `xpub5bTZy77KFNhRQa2AMzE1gS4sc643CA6aYRyZ7vswMRNeXbcuYFuWPtZEfEKpHWuEfKtTbMJugXPBkf6jHVOJ2nS2vkwWQtzMzjm2EAzMpP4`
 
 ### Usage
 
