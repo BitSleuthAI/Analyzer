@@ -15,12 +15,10 @@ on:
   pull_request:
     branches:
       - main
-      - develop
       - dev
   push:
     branches:
       - main
-      - dev
 
 jobs:
   test-with-environment:
