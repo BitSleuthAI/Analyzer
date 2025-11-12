@@ -68,7 +68,12 @@ const config: Config = {
           "5": "hsl(var(--chart-5))",
           positive: "hsl(var(--chart-positive))",
           negative: "hsl(var(--chart-negative))",
+          received: "hsl(var(--chart-received))",
+          sent: "hsl(var(--chart-sent))",
         },
+        brand: "hsl(var(--brand))",
+        treemap: "hsl(var(--treemap))",
+        progress: "hsl(var(--progress))",
       },
       borderRadius: {
         lg: "var(--radius)",
