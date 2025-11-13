@@ -7,7 +7,7 @@ import type { FeedbackOutput } from '@/ai/flows/feedback-flow';
 
 /**
  * Appends a new row of processed feedback data to the configured Google Sheet.
- * This function requires GOOGLE_SHEETS_ID, GOOGLE_SHEETS_CLIENT_EMAIL, and
+ * This function requires GOOGLE_SHEETS_ID_FEEDBACK (or GOOGLE_SHEETS_ID), GOOGLE_SHEETS_CLIENT_EMAIL, and
  * GOOGLE_SHEETS_PRIVATE_KEY to be set in the environment variables.
  *
  * @param feedbackData The structured feedback object to be added to the sheet.
@@ -15,7 +15,7 @@ import type { FeedbackOutput } from '@/ai/flows/feedback-flow';
 export async function appendToSheet(feedbackData: FeedbackOutput): Promise<void> {
   const { category, summary, sentiment, originalFeedback, ipAddress } = feedbackData;
 
-  const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
+  const spreadsheetId = process.env.GOOGLE_SHEETS_ID_FEEDBACK || process.env.GOOGLE_SHEETS_ID;
   const client_email = process.env.GOOGLE_SHEETS_CLIENT_EMAIL;
   // The private key can come from .env file or Google Cloud Secret Manager.
   // Handle both escaped newlines (\n as text) and actual newlines.
@@ -30,7 +30,7 @@ export async function appendToSheet(feedbackData: FeedbackOutput): Promise<void>
     // Log a warning for developers but don't crash the app.
     // The feedback is still processed by the AI, it's just not saved to the sheet.
     const missingVars: string[] = [];
-    if (!spreadsheetId) missingVars.push('GOOGLE_SHEETS_ID');
+    if (!spreadsheetId) missingVars.push('GOOGLE_SHEETS_ID_FEEDBACK or GOOGLE_SHEETS_ID');
     if (!client_email) missingVars.push('GOOGLE_SHEETS_CLIENT_EMAIL');
     if (!private_key) missingVars.push('GOOGLE_SHEETS_PRIVATE_KEY');
     
