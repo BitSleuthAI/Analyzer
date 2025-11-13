@@ -114,7 +114,7 @@ export default function CoinControlPage() {
     }
 
     return (
-        <div className="space-y-4 sm:space-y-6 max-w-full">
+        <div className="space-y-4 sm:space-y-6 w-full overflow-hidden">
             <Card>
                 <CardHeader>
                     <CardTitle className="text-lg sm:text-xl">UTXO Distribution</CardTitle>
@@ -123,25 +123,27 @@ export default function CoinControlPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="px-2 sm:px-6">
-                    <ResponsiveContainer width="100%" height={300}>
-                          <Treemap
-                            data={treemapData}
-                            dataKey="value"
-                            nameKey="id"
-                            aspectRatio={4 / 3}
-                             stroke="hsl(var(--background))"
-                             /* Use CSS variable so SSR is safe */
-                             fill="hsl(var(--treemap))"
-                            isAnimationActive={false}
-                         >
-                            <RechartsTooltip content={<CustomTreemapTooltip currency={currency} fiatPrice={fiatPrice} />} />
-                         </Treemap>
-                    </ResponsiveContainer>
+                    <div className="w-full overflow-hidden">
+                        <ResponsiveContainer width="100%" height={300}>
+                              <Treemap
+                                data={treemapData}
+                                dataKey="value"
+                                nameKey="id"
+                                aspectRatio={4 / 3}
+                                 stroke="hsl(var(--background))"
+                                 /* Use CSS variable so SSR is safe */
+                                 fill="hsl(var(--treemap))"
+                                isAnimationActive={false}
+                             >
+                                <RechartsTooltip content={<CustomTreemapTooltip currency={currency} fiatPrice={fiatPrice} />} />
+                             </Treemap>
+                        </ResponsiveContainer>
+                    </div>
                 </CardContent>
             </Card>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 max-w-full">
-                <Card className="lg:col-span-2 min-w-0">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
+                <Card className="lg:col-span-2 min-w-0 overflow-hidden">
                     <CardHeader>
                          <CardTitle className="flex items-center gap-2 text-base sm:text-lg"><Coins className="h-4 w-4 sm:h-5 sm:w-5" /> All Wallet UTXOs ({utxos.length})</CardTitle>
                          <CardDescription className="text-sm">
@@ -149,7 +151,7 @@ export default function CoinControlPage() {
                          </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="overflow-x-auto border rounded-md">
+                        <div className="border rounded-md">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -208,8 +210,8 @@ export default function CoinControlPage() {
                         </div>
                     </CardContent>
                 </Card>
-                <div className="space-y-6 min-w-0">
-                    <Card className="min-w-0">
+                <div className="space-y-6 min-w-0 overflow-hidden">
+                    <Card className="min-w-0 overflow-hidden">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2"><Puzzle className="h-5 w-5" />Consolidation Simulator</CardTitle>
                         </CardHeader>
@@ -255,7 +257,7 @@ export default function CoinControlPage() {
 
                         </CardContent>
                     </Card>
-                     <Card className="min-w-0">
+                     <Card className="min-w-0 overflow-hidden">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2"><Info className="h-5 w-5"/>Wallet Health</CardTitle>
                         </CardHeader>
