@@ -70,6 +70,7 @@ const config: Config = {
           negative: "hsl(var(--chart-negative))",
           received: "hsl(var(--chart-received))",
           sent: "hsl(var(--chart-sent))",
+          purple: "hsl(var(--chart-purple))",
         },
         brand: "hsl(var(--brand))",
         treemap: "hsl(var(--treemap))",
