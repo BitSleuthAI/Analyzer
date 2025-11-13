@@ -202,7 +202,7 @@ export default function AnalysisPage() {
   }
 
   const balanceChartConfig = {
-    balanceFiat: { label: `Balance (${currency})`, color: 'hsl(var(--primary))' },
+    balanceFiat: { label: `Balance (${currency})`, color: 'hsl(var(--chart-purple))' },
   };
 
   const monthlyVolumeConfig = {
@@ -392,7 +392,7 @@ export default function AnalysisPage() {
                         />
                         <ZAxis type="category" dataKey="id" name="txid"/>
                         <Tooltip content={<CustomFeeTooltip />} cursor={{ strokeDasharray: '3 3' }}/>
-                        <Scatter name="Transactions" data={feeScatterData} fill="hsl(var(--primary))" opacity={0.6} />
+                        <Scatter name="Transactions" data={feeScatterData} fill="hsl(var(--chart-purple))" opacity={0.6} />
                     </ScatterChart>
                 </ChartContainer>
             </CardContent>

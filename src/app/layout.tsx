@@ -88,7 +88,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#BF5FFF',
+  themeColor: '#F7931A',
   width: 'device-width',
   initialScale: 1,
 };
@@ -102,7 +102,7 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable}`} suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#BF5FFF" />
+        <meta name="theme-color" content="#F7931A" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{

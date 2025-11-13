@@ -43,8 +43,9 @@
     --chart-negative: 350 89% 60%;
     --chart-received: 330 100% 71%;
     --chart-sent: 150 100% 71%;
+    --chart-purple: 276 100% 68.4%; /* Purple for specific charts */
     /* Brand color used for logos/icons regardless of theme */
-    --brand: 276 100% 68.4%;
+    --brand: 33 93% 54%; /* Bitcoin orange #F7931A */
     /* Light-mode specific accents */
     --treemap: 0 0% 70%; /* neutral grey for UTXO treemap */
     --progress: 158 82% 42%; /* emerald for positive progress bars */
@@ -67,19 +68,19 @@
     /* Match popover to card contrast in dark mode */
     --popover: 0 0% 12%;
     --popover-foreground: 0 0% 98%;
-    --primary: 276 100% 68.4%; /* #BF5FFF */
-    --primary-foreground: 276 100% 15%;
+    --primary: 33 93% 54%; /* Bitcoin orange #F7931A */
+    --primary-foreground: 0 0% 100%;
     --secondary: 0 0% 14.9%;
     --secondary-foreground: 0 0% 98%;
     --muted: 0 0% 14.9%;
     --muted-foreground: 0 0% 63.9%;
-    --accent: 276 100% 68.4%; /* #BF5FFF */
-    --accent-foreground: 276 100% 15%;
+    --accent: 33 93% 54%; /* Bitcoin orange #F7931A */
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 20%;
     --input: 0 0% 20%;
-    --ring: 276 100% 75%;
+    --ring: 33 93% 54%;
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
@@ -89,17 +90,18 @@
     --chart-negative: 0 90% 60%;
     --chart-received: 330 100% 71%;
     --chart-sent: 150 100% 71%;
-    --brand: 276 100% 68.4%;
+    --chart-purple: 276 100% 68.4%; /* Purple for specific charts */
+    --brand: 33 93% 54%; /* Bitcoin orange #F7931A */
     /* Dark-mode specific accents */
-    --treemap: 276 100% 68.4%; /* brand purple in dark mode */
-    --progress: 276 100% 68.4%; /* brand purple indicator */
+    --treemap: 33 93% 54%; /* Bitcoin orange in dark mode */
+    --progress: 33 93% 54%; /* Bitcoin orange indicator */
     --sidebar-background: 0 0% 8%;
     --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 276 100% 68.4%;
+    --sidebar-primary: 33 93% 54%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 0 0% 14.9%;
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 0 0% 20%;
-    --sidebar-ring: 276 100% 75%;
+    --sidebar-ring: 33 93% 54%;
   }
 }
