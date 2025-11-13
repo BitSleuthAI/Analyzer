@@ -114,7 +114,7 @@ export default function CoinControlPage() {
     }
 
     return (
-        <div className="space-y-4 sm:space-y-6 w-full overflow-hidden">
+        <div className="space-y-4 sm:space-y-6">
             <Card>
                 <CardHeader>
                     <CardTitle className="text-lg sm:text-xl">UTXO Distribution</CardTitle>
@@ -123,16 +123,14 @@ export default function CoinControlPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="px-2 sm:px-6">
-                    <div className="w-full overflow-hidden">
+                    <div className="w-full">
                         <ResponsiveContainer width="100%" height={300}>
                               <Treemap
                                 data={treemapData}
                                 dataKey="value"
                                 nameKey="id"
-                                aspectRatio={4 / 3}
-                                 stroke="hsl(var(--background))"
-                                 /* Use CSS variable so SSR is safe */
-                                 fill="hsl(var(--treemap))"
+                                stroke="hsl(var(--background))"
+                                fill="hsl(var(--treemap))"
                                 isAnimationActive={false}
                              >
                                 <RechartsTooltip content={<CustomTreemapTooltip currency={currency} fiatPrice={fiatPrice} />} />
@@ -142,8 +140,8 @@ export default function CoinControlPage() {
                 </CardContent>
             </Card>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
-                <Card className="lg:col-span-2 min-w-0 overflow-hidden">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+                <Card className="lg:col-span-2">
                     <CardHeader>
                          <CardTitle className="flex items-center gap-2 text-base sm:text-lg"><Coins className="h-4 w-4 sm:h-5 sm:w-5" /> All Wallet UTXOs ({utxos.length})</CardTitle>
                          <CardDescription className="text-sm">
@@ -151,8 +149,7 @@ export default function CoinControlPage() {
                          </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="border rounded-md">
-                            <Table>
+                        <Table>
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead className="w-[50px]">
@@ -186,13 +183,13 @@ export default function CoinControlPage() {
                                                 <TableCell className="font-mono text-xs hidden sm:table-cell">
                                                     <TooltipProvider>
                                                         <Tooltip>
-                                                            <TooltipTrigger className="truncate block max-w-[200px]">{`${utxo.address.slice(0,10)}...${utxo.address.slice(-5)}`}</TooltipTrigger>
+                                                            <TooltipTrigger className="truncate block">{`${utxo.address.slice(0,10)}...${utxo.address.slice(-5)}`}</TooltipTrigger>
                                                             <TooltipContent>{utxo.address}</TooltipContent>
                                                         </Tooltip>
                                                     </TooltipProvider>
                                                 </TableCell>
                                                 <TableCell className="font-mono text-xs">
-                                                     <a href={`/transactions/${utxo.txid}`} className="hover:underline truncate block max-w-[150px]" target="_blank" rel="noopener noreferrer">
+                                                     <a href={`/transactions/${utxo.txid}`} className="hover:underline truncate block" target="_blank" rel="noopener noreferrer">
                                                         {`${utxo.txid.slice(0, 10)}...`}
                                                     </a>
                                                 </TableCell>
@@ -207,11 +204,10 @@ export default function CoinControlPage() {
                                     )}
                                 </TableBody>
                             </Table>
-                        </div>
                     </CardContent>
                 </Card>
-                <div className="space-y-6 min-w-0 overflow-hidden">
-                    <Card className="min-w-0 overflow-hidden">
+                <div className="space-y-6">
+                    <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2"><Puzzle className="h-5 w-5" />Consolidation Simulator</CardTitle>
                         </CardHeader>
@@ -257,7 +253,7 @@ export default function CoinControlPage() {
 
                         </CardContent>
                     </Card>
-                     <Card className="min-w-0 overflow-hidden">
+                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2"><Info className="h-5 w-5"/>Wallet Health</CardTitle>
                         </CardHeader>
