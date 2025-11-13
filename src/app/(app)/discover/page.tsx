@@ -69,7 +69,7 @@ const INTEREST_COLORS = {
     high: '#dc2626', // red-600
     medium: '#f59e0b', // amber-500
     low: {
-        address: '#BF5FFF',
+        address: '#F7931A', // Bitcoin orange
         transaction: '#FF69B4',
     }
 }
