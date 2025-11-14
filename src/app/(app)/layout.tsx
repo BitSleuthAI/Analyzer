@@ -292,9 +292,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { activeXpub, isLoading, disconnect, nostrNpub, nostrProfile, isNostrReady, connectNostr, updateNostrProfile, showSaveXpubsPrompt, setShowSaveXpubsPrompt, saveXpubsToNostr, refetch } = useWallet();
-  const { setOpenMobile, state: sidebarState, isMobile } = useSidebar();
-  // Reserve horizontal space so content never sits behind the sidebar.
-  const sidebarReservedWidth = !isMobile ? (sidebarState === 'expanded' ? 240 : 56) : 0;
+  const { setOpenMobile } = useSidebar();
   const { toast } = useToast();
   const [isNostrDialogOpen, setNostrDialogOpen] = React.useState(false);
   const [isEditProfileOpen, setEditProfileOpen] = React.useState(false);
@@ -591,7 +589,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
             </div>
         </SidebarFooter>
       </Sidebar>
-      <SidebarInset style={{ marginLeft: sidebarReservedWidth, width: `calc(100vw - ${sidebarReservedWidth}px)` }}>
+      <SidebarInset>
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background/80 px-4 backdrop-blur-sm gap-2">
             <div className="flex items-center justify-start gap-2 sm:gap-4 min-w-0">
               <SidebarTrigger />
