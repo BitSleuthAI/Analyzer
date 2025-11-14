@@ -23,6 +23,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { useSidebar } from '@/components/ui/sidebar';
 
 const DUST_THRESHOLD = 546; // satoshis
 const TRANSACTION_OVERHEAD = 10; // bytes
@@ -50,6 +51,7 @@ const CustomTreemapTooltip = ({ active, payload, currency, fiatPrice }: any) => 
 
 export default function CoinControlPage() {
     const { data, isLoading, error, activeXpub, fiatPrice, currency, recommendations } = useWallet();
+    const { state: sidebarState } = useSidebar(); // Force responsive widgets to remount when the sidebar width changes
     const [selectedUtxos, setSelectedUtxos] = useState<Record<string, boolean>>({});
     
     // Using recommended fee from wallet context if available, otherwise fallback
@@ -114,17 +116,17 @@ export default function CoinControlPage() {
     }
 
     return (
-        <div className="space-y-4 sm:space-y-6">
-            <Card>
+        <div className="flex flex-col gap-4 sm:gap-6">
+            <Card className="min-w-0">
                 <CardHeader>
                     <CardTitle className="text-lg sm:text-xl">UTXO Distribution</CardTitle>
                     <CardDescription className="text-sm">
                         This treemap visualizes all the Unspent Transaction Outputs (UTXOs) in your wallet. Each rectangle represents a single UTXO, and its size corresponds to its value in satoshis.
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="px-2 sm:px-6">
-                    <div className="w-full">
-                        <ResponsiveContainer width="100%" height={300}>
+                <CardContent className="px-2 sm:px-6 min-w-0">
+                    <div className="w-full min-w-0">
+                        <ResponsiveContainer key={`treemap-${sidebarState}`} width="100%" height={300}>
                               <Treemap
                                 data={treemapData}
                                 dataKey="value"
@@ -140,35 +142,36 @@ export default function CoinControlPage() {
                 </CardContent>
             </Card>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-                <Card className="lg:col-span-2">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 min-w-0">
+                <Card className="lg:col-span-2 min-w-0">
                     <CardHeader>
                          <CardTitle className="flex items-center gap-2 text-base sm:text-lg"><Coins className="h-4 w-4 sm:h-5 sm:w-5" /> All Wallet UTXOs ({utxos.length})</CardTitle>
                          <CardDescription className="text-sm">
                             A list of all individual "coins" in your wallet. Select UTXOs to simulate a consolidation transaction.
                          </CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <Table>
+                    <CardContent className="min-w-0 px-0 sm:px-6">
+                        <div key={`utxo-table-${sidebarState}`} className="overflow-x-auto rounded-md border">
+                            <Table className="min-w-[540px] table-fixed">
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead className="w-12 px-2">
+                                        <TableHead className="w-10 px-3">
                                             <Checkbox
                                                 checked={selectAllCheckedState}
                                                 onCheckedChange={handleSelectAll}
                                                 aria-label="Select all"
                                             />
                                         </TableHead>
-                                        <TableHead className="px-2">Value</TableHead>
-                                        <TableHead className="hidden lg:table-cell px-2">Address</TableHead>
-                                        <TableHead className="px-2">Tx Origin</TableHead>
+                                        <TableHead className="px-3 text-right w-32">Value</TableHead>
+                                        <TableHead className="hidden xl:table-cell px-3 w-64">Address</TableHead>
+                                        <TableHead className="px-3 w-40">Tx Origin</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {utxos.length > 0 ? (
                                         utxos.map(utxo => (
                                             <TableRow key={`${utxo.txid}:${utxo.vout}`}>
-                                                <TableCell className="px-2 py-3">
+                                                <TableCell className="px-3 py-3">
                                                     <Checkbox
                                                         checked={selectedUtxos[`${utxo.txid}:${utxo.vout}`] || false}
                                                         onCheckedChange={(checked) => {
@@ -176,20 +179,22 @@ export default function CoinControlPage() {
                                                         }}
                                                     />
                                                 </TableCell>
-                                                <TableCell className="px-2 py-3">
-                                                    <div className="font-mono text-sm whitespace-nowrap">{(utxo.value / 1e8).toFixed(8)} BTC</div>
-                                                    <div className="text-xs text-muted-foreground whitespace-nowrap">{formatCurrency((utxo.value / 1e8) * fiatPrice)}</div>
+                                                <TableCell className="px-3 py-3">
+                                                    <div className="flex flex-col items-end gap-1">
+                                                        <span className="font-mono text-sm">{(utxo.value / 1e8).toFixed(8)} BTC</span>
+                                                        <span className="text-xs text-muted-foreground">{formatCurrency((utxo.value / 1e8) * fiatPrice)}</span>
+                                                    </div>
                                                 </TableCell>
-                                                <TableCell className="font-mono text-xs hidden lg:table-cell px-2 py-3">
+                                                <TableCell className="hidden xl:table-cell px-3 py-3 font-mono text-xs">
                                                     <TooltipProvider>
                                                         <Tooltip>
-                                                            <TooltipTrigger className="truncate block max-w-[140px]">{`${utxo.address.slice(0,10)}...${utxo.address.slice(-5)}`}</TooltipTrigger>
+                                                            <TooltipTrigger className="truncate block">{`${utxo.address.slice(0,10)}...${utxo.address.slice(-5)}`}</TooltipTrigger>
                                                             <TooltipContent>{utxo.address}</TooltipContent>
                                                         </Tooltip>
                                                     </TooltipProvider>
                                                 </TableCell>
-                                                <TableCell className="font-mono text-xs px-2 py-3">
-                                                     <a href={`/transactions/${utxo.txid}`} className="hover:underline truncate block max-w-[120px]" target="_blank" rel="noopener noreferrer">
+                                                <TableCell className="px-3 py-3 font-mono text-xs">
+                                                     <a href={`/transactions/${utxo.txid}`} className="hover:underline truncate block" target="_blank" rel="noopener noreferrer">
                                                         {`${utxo.txid.slice(0, 10)}...`}
                                                     </a>
                                                 </TableCell>
@@ -204,10 +209,11 @@ export default function CoinControlPage() {
                                     )}
                                 </TableBody>
                             </Table>
+                        </div>
                     </CardContent>
                 </Card>
-                <div className="space-y-6">
-                    <Card>
+                <div className="space-y-6 min-w-0">
+                    <Card className="min-w-0">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2"><Puzzle className="h-5 w-5" />Consolidation Simulator</CardTitle>
                         </CardHeader>
@@ -253,7 +259,7 @@ export default function CoinControlPage() {
 
                         </CardContent>
                     </Card>
-                     <Card>
+                     <Card className="min-w-0">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2"><Info className="h-5 w-5"/>Wallet Health</CardTitle>
                         </CardHeader>
