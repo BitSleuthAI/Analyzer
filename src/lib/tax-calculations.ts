@@ -169,12 +169,19 @@ export class TaxCalculator {
     const lotsUsed: DisposalEvent['lots'] = [];
 
     for (const match of matchedLots) {
-      const lot = match.lot;
+      const lot = match.lot as TaxLot & { _avgCostOverride?: number };
       const amountFromLot = match.amount;
-      const costBasisFromLot = lot.costPerUnit * amountFromLot;
+      // Use average cost override if present (for AVG_COST/SHARED_POOL methods)
+      const effectiveCostPerUnit = lot._avgCostOverride || lot.costPerUnit;
+      const costBasisFromLot = effectiveCostPerUnit * amountFromLot;
       
       totalCostBasis += costBasisFromLot;
-      lot.remaining -= amountFromLot;
+      
+      // Find and update the original lot in this.lots array
+      const originalLot = this.lots.find(l => l.id === lot.id);
+      if (originalLot) {
+        originalLot.remaining -= amountFromLot;
+      }
 
       const holdingPeriodDays = differenceInDays(disposalDate, lot.date);
       const taxCategory = this.determineTaxCategory(holdingPeriodDays);
@@ -265,14 +272,18 @@ export class TaxCalculator {
         const totalCost = sortedLots.reduce((sum, lot) => sum + (lot.remaining * lot.costPerUnit), 0);
         const avgCost = totalRemaining > 0 ? totalCost / totalRemaining : 0;
         
-        // Treat as a single virtual lot
+        // For average cost, we need to match lots but use average cost basis
+        // We'll store the avgCost in a special property that addDisposal can use
         if (sortedLots.length > 0 && remaining > 0) {
           for (const lot of sortedLots) {
             if (remaining <= 0) break;
             const amount = Math.min(remaining, lot.remaining);
-            // Override cost per unit with average
-            const virtualLot = { ...lot, costPerUnit: avgCost };
-            matches.push({ lot: virtualLot, amount });
+            // Store average cost as metadata that addDisposal will use
+            const lotWithAvgCost = { 
+              ...lot, 
+              _avgCostOverride: avgCost 
+            } as TaxLot & { _avgCostOverride?: number };
+            matches.push({ lot: lotWithAvgCost, amount });
             remaining -= amount;
           }
         }
