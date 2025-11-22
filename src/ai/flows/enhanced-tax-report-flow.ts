@@ -245,11 +245,16 @@ export async function getEnhancedTaxReport(input: EnhancedTaxReportInput): Promi
             
             if (classification.category === 'ACQUISITION') {
                 // Received BTC - add as acquisition
+                // For purchases, fees paid should be added to cost basis
+                const feeInBtc = tx.fee / 1e8;
+                const feeValue = feeInBtc * historicalPrice;
+                const adjustedCostBasis = txValue + feeValue; // Include fees in cost basis
+                
                 taxCalc.addAcquisition(
                     tx.id,
                     txDate,
                     tx.btc,
-                    txValue,
+                    adjustedCostBasis,
                     tx.toAddress[0],
                     classification.incomeType
                 );
@@ -260,19 +265,21 @@ export async function getEnhancedTaxReport(input: EnhancedTaxReportInput): Promi
             } else if (classification.category === 'DISPOSAL') {
                 // Sent BTC - add as disposal
                 const feeInBtc = tx.fee / 1e8;
-                const amountSold = Math.abs(tx.btc) - feeInBtc; // Exclude fee from amount
+                const amountSold = Math.abs(tx.btc); // Actual BTC amount disposed
+                const feeValue = feeInBtc * historicalPrice;
+                const proceeds = txValue - feeValue; // Net proceeds after fees
                 
                 taxCalc.addDisposal(
                     tx.id,
                     txDate,
                     amountSold,
-                    txValue,
+                    proceeds,
                     classification.disposalType || 'SALE'
                 );
                 
                 if (isWithinInterval(txDate, { start: startDate, end: endDate })) {
                     outflowDuringPeriod += txValue;
-                    tradingFeesDuringPeriod += feeInBtc * historicalPrice;
+                    tradingFeesDuringPeriod += feeValue;
                 }
             }
         }

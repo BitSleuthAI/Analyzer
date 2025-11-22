@@ -15,10 +15,20 @@ export default function ReportWrapper() {
     <div className="space-y-6">
       <Alert className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-amber-500/20">
         <Sparkles className="h-4 w-4 text-amber-500" />
-        <AlertTitle>Enhanced Tax Reporting - Beta</AlertTitle>
+        <AlertTitle>Enhanced Tax Reporting</AlertTitle>
         <AlertDescription>
           Professional-grade Bitcoin tax reporting with multiple accounting methods and jurisdiction-specific rules.
           This tool helps you understand your tax obligations and optimize your tax strategy.
+        </AlertDescription>
+      </Alert>
+
+      <Alert variant="default" className="border-blue-500/20 bg-blue-500/5">
+        <AlertTitle className="text-sm font-semibold">Tax Professional Disclaimer</AlertTitle>
+        <AlertDescription className="text-xs">
+          This tool provides informational tax calculations only. It is NOT tax, legal, or financial advice.
+          Tax laws are complex and vary by jurisdiction. Always consult a qualified tax professional or CPA
+          before making tax-related decisions or filing returns. BitSleuth is not responsible for any errors,
+          omissions, or tax consequences resulting from use of this tool.
         </AlertDescription>
       </Alert>
 
