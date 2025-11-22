@@ -387,42 +387,51 @@ export async function exportFullTaxPackage(
   currency: string,
   currencySymbol: string
 ) {
-  const timestamp = format(new Date(), 'yyyy-MM-dd');
-  
-  // Create a new ZIP file
-  const zip = new JSZip();
-  
-  // Generate all reports
-  const summary = generateTaxSummaryCSV(report, currency);
-  const capitalGains = generateCapitalGainsCSV(report.disposals, report.jurisdiction, currency);
-  const income = generateIncomeCSV(report.income, currency);
-  const lots = generateTaxLotsCSV(report.lots, currency);
-  const textReport = generateTextReport(report, currency, currencySymbol);
-  const form8949 = generateForm8949Data(report.disposals, currency);
-  
-  // Add all files to the ZIP
-  zip.file(`bitcoin-tax-summary-${timestamp}.csv`, summary);
-  zip.file(`bitcoin-capital-gains-${timestamp}.csv`, capitalGains);
-  zip.file(`bitcoin-income-${timestamp}.csv`, income);
-  zip.file(`bitcoin-tax-lots-${timestamp}.csv`, lots);
-  zip.file(`bitcoin-tax-report-${timestamp}.txt`, textReport);
-  
-  // Add Form 8949 for US jurisdiction
-  if (report.jurisdiction === 'US') {
-    zip.file(`form-8949-short-term-${timestamp}.csv`, form8949.shortTerm);
-    zip.file(`form-8949-long-term-${timestamp}.csv`, form8949.longTerm);
+  try {
+    const timestamp = format(new Date(), 'yyyy-MM-dd');
+    
+    // Create a new ZIP file
+    const zip = new JSZip();
+    
+    // Generate all reports
+    const summary = generateTaxSummaryCSV(report, currency);
+    const capitalGains = generateCapitalGainsCSV(report.disposals, report.jurisdiction, currency);
+    const income = generateIncomeCSV(report.income, currency);
+    const lots = generateTaxLotsCSV(report.lots, currency);
+    const textReport = generateTextReport(report, currency, currencySymbol);
+    const form8949 = generateForm8949Data(report.disposals, currency);
+    
+    // Add all files to the ZIP
+    zip.file(`bitcoin-tax-summary-${timestamp}.csv`, summary);
+    zip.file(`bitcoin-capital-gains-${timestamp}.csv`, capitalGains);
+    zip.file(`bitcoin-income-${timestamp}.csv`, income);
+    zip.file(`bitcoin-tax-lots-${timestamp}.csv`, lots);
+    zip.file(`bitcoin-tax-report-${timestamp}.txt`, textReport);
+    
+    // Add Form 8949 for US jurisdiction
+    if (report.jurisdiction === 'US') {
+      zip.file(`form-8949-short-term-${timestamp}.csv`, form8949.shortTerm);
+      zip.file(`form-8949-long-term-${timestamp}.csv`, form8949.longTerm);
+    }
+    
+    // Generate the ZIP file as a blob with compression
+    const zipBlob = await zip.generateAsync({ 
+      type: 'blob',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 6 }
+    });
+    
+    // Download the ZIP file
+    const url = URL.createObjectURL(zipBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `bitcoin-tax-package-${timestamp}.zip`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Failed to generate tax package ZIP:', error);
+    throw new Error('Failed to generate tax package. Please try again.');
   }
-  
-  // Generate the ZIP file as a blob
-  const zipBlob = await zip.generateAsync({ type: 'blob' });
-  
-  // Download the ZIP file
-  const url = URL.createObjectURL(zipBlob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `bitcoin-tax-package-${timestamp}.zip`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
 }

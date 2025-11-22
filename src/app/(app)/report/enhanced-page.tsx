@@ -55,6 +55,7 @@ import { TaxHelpDialog } from '@/components/tax-help-dialog';
 import { TransactionCategoryDialog } from '@/components/transaction-category-dialog';
 import { UTXOLotTracking } from '@/components/utxo-lot-tracking';
 import { generateTaxReportPDF, generateForm8949PDF, downloadPDF } from '@/lib/pdf-export';
+import { useToast } from '@/hooks/use-toast';
 
 const ACCOUNTING_METHODS: { value: AccountingMethod; label: string; description: string }[] = [
   { value: 'FIFO', label: 'FIFO', description: 'First In, First Out - Default for US. Sells oldest assets first.' },
@@ -152,6 +153,7 @@ const CustomPortfolioTooltip = ({
 
 export default function EnhancedReportPage() {
   const { data: walletData, isLoading: isWalletLoading, error: walletError, activeXpub: xpub, currency, currencySymbol } = useWallet();
+  const { toast } = useToast();
   const [reportData, setReportData] = useState<EnhancedTaxReportOutput | null>(null);
   const [isReportLoading, setIsReportLoading] = useState(true);
   const [reportError, setReportError] = useState<string | null>(null);
@@ -1079,9 +1081,17 @@ export default function EnhancedReportPage() {
               onClick={async () => {
                 try {
                   await exportFullTaxPackage(reportData, currency, currencySymbol);
+                  toast({
+                    title: "Tax Package Downloaded",
+                    description: "Your tax report package has been successfully downloaded as a ZIP file.",
+                  });
                 } catch (error) {
                   console.error('Error exporting tax package:', error);
-                  // Optionally show an error toast/message to the user
+                  toast({
+                    variant: "destructive",
+                    title: "Export Failed",
+                    description: error instanceof Error ? error.message : "Failed to generate tax package. Please try again.",
+                  });
                 }
               }}
             >
