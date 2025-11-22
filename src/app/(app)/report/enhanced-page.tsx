@@ -1076,14 +1076,21 @@ export default function EnhancedReportPage() {
             )}
             <Button 
               variant="outline"
-              onClick={() => exportFullTaxPackage(reportData, currency, currencySymbol)}
+              onClick={async () => {
+                try {
+                  await exportFullTaxPackage(reportData, currency, currencySymbol);
+                } catch (error) {
+                  console.error('Error exporting tax package:', error);
+                  // Optionally show an error toast/message to the user
+                }
+              }}
             >
               <Package className="mr-2 h-4 w-4" />
               Download Complete Package
             </Button>
           </div>
           <p className="text-xs text-muted-foreground mt-4">
-            The complete package includes: tax summary, capital gains, income events, tax lots, text report
+            The complete package downloads as a single ZIP file containing: tax summary, capital gains, income events, tax lots, text report
             {reportData.jurisdiction === 'US' && ', and IRS Form 8949 data'}.
           </p>
         </CardContent>
