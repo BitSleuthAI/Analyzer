@@ -154,7 +154,7 @@ export default function EnhancedReportPage() {
   const { data: walletData, isLoading: isWalletLoading, error: walletError, activeXpub: xpub, currency, currencySymbol } = useWallet();
   const { toast } = useToast();
   const [reportData, setReportData] = useState<EnhancedTaxReportOutput | null>(null);
-  const [isReportLoading, setIsReportLoading] = useState(true);
+  const [isReportLoading, setIsReportLoading] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
 
   const [accountingMethod, setAccountingMethod] = useState<AccountingMethod>('FIFO');
