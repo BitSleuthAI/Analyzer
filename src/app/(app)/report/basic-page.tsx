@@ -38,7 +38,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { ChartContainer } from '@/components/ui/chart';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, ReferenceLine, Tooltip as RechartsTooltip, Bar } from 'recharts';
 import type { TaxReportOutput as TaxReportData, Holding } from '@/lib/types';
-import { getTaxReport } from '@/ai/flows/tax-report-flow';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -203,12 +202,25 @@ export default function BasicReportPage() {
         setReportData(null);
         
         try {
-            const result = await getTaxReport({
-                walletData: JSON.stringify(walletData),
-                startDate: date.from.toISOString(),
-                endDate: date.to.toISOString(),
-                currency: currency,
+            const response = await fetch('/api/tax-report', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    walletData: JSON.stringify(walletData),
+                    startDate: date.from.toISOString(),
+                    endDate: date.to.toISOString(),
+                    currency: currency,
+                }),
             });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to generate report');
+            }
+
+            const result = await response.json();
             setReportData(result);
             setHoldingsDate(date.to);
             setSelectedAssets({});
