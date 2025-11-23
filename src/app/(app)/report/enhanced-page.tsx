@@ -38,7 +38,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { ChartContainer } from '@/components/ui/chart';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import type { EnhancedTaxReportOutput, AccountingMethod, Jurisdiction } from '@/lib/types';
-import { getEnhancedTaxReport } from '@/ai/flows/enhanced-tax-report-flow';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -155,7 +154,7 @@ export default function EnhancedReportPage() {
   const { data: walletData, isLoading: isWalletLoading, error: walletError, activeXpub: xpub, currency, currencySymbol } = useWallet();
   const { toast } = useToast();
   const [reportData, setReportData] = useState<EnhancedTaxReportOutput | null>(null);
-  const [isReportLoading, setIsReportLoading] = useState(true);
+  const [isReportLoading, setIsReportLoading] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
 
   const [accountingMethod, setAccountingMethod] = useState<AccountingMethod>('FIFO');
@@ -206,14 +205,27 @@ export default function EnhancedReportPage() {
     setReportData(null);
     
     try {
-      const result = await getEnhancedTaxReport({
-        walletData: JSON.stringify(walletData),
-        startDate: date.from.toISOString(),
-        endDate: date.to.toISOString(),
-        currency: currency,
-        accountingMethod,
-        jurisdiction,
+      const response = await fetch('/api/enhanced-tax-report', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          walletData: JSON.stringify(walletData),
+          startDate: date.from.toISOString(),
+          endDate: date.to.toISOString(),
+          currency: currency,
+          accountingMethod,
+          jurisdiction,
+        }),
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate enhanced report');
+      }
+
+      const result = await response.json();
       setReportData(result);
     } catch (e: any) {
       setReportError(e.message || "An error occurred while generating the report.");
