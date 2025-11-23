@@ -126,6 +126,21 @@ const isValidPortfolioData = (data: unknown): data is PortfolioHistoryPoint => {
   );
 };
 
+const IconContainer = ({ children, variant = 'primary' }: { children: React.ReactNode; variant?: 'primary' | 'emerald' | 'rose' | 'blue' }) => {
+  const variantClasses = {
+    primary: 'bg-primary/10',
+    emerald: 'bg-emerald-500/10',
+    rose: 'bg-rose-500/10',
+    blue: 'bg-blue-500/10'
+  };
+  
+  return (
+    <div className={cn("p-2 rounded-lg", variantClasses[variant])}>
+      {children}
+    </div>
+  );
+};
+
 const CustomPortfolioTooltip = ({ 
   active, 
   payload, 
@@ -363,9 +378,9 @@ export default function EnhancedReportPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <CardTitle className="flex items-center gap-2 text-xl">
-                <div className="p-2 rounded-lg bg-primary/10">
+                <IconContainer variant="primary">
                   <FileText className="h-5 w-5 text-primary" />
-                </div>
+                </IconContainer>
                 Tax Report Configuration
               </CardTitle>
               <CardDescription className="mt-2">Select your accounting method and tax jurisdiction</CardDescription>
@@ -478,9 +493,9 @@ export default function EnhancedReportPage() {
       <Card className="shadow-sm border">
         <CardHeader className="bg-emerald-500/5 border-b">
           <CardTitle className="flex items-center gap-2 text-lg">
-            <div className="p-2 rounded-lg bg-emerald-500/10">
+            <IconContainer variant="emerald">
               <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-            </div>
+            </IconContainer>
             Calculation Methodology
           </CardTitle>
           <CardDescription>Understanding how your tax numbers are calculated</CardDescription>
