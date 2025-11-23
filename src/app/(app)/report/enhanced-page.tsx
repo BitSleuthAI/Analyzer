@@ -55,6 +55,7 @@ import { TaxHelpDialog } from '@/components/tax-help-dialog';
 import { TransactionCategoryDialog } from '@/components/transaction-category-dialog';
 import { UTXOLotTracking } from '@/components/utxo-lot-tracking';
 import { generateTaxReportPDF, generateForm8949PDF, downloadPDF } from '@/lib/pdf-export';
+import { useToast } from '@/hooks/use-toast';
 
 const ACCOUNTING_METHODS: { value: AccountingMethod; label: string; description: string }[] = [
   { value: 'FIFO', label: 'FIFO', description: 'First In, First Out - Default for US. Sells oldest assets first.' },
@@ -152,6 +153,7 @@ const CustomPortfolioTooltip = ({
 
 export default function EnhancedReportPage() {
   const { data: walletData, isLoading: isWalletLoading, error: walletError, activeXpub: xpub, currency, currencySymbol } = useWallet();
+  const { toast } = useToast();
   const [reportData, setReportData] = useState<EnhancedTaxReportOutput | null>(null);
   const [isReportLoading, setIsReportLoading] = useState(true);
   const [reportError, setReportError] = useState<string | null>(null);
@@ -1076,14 +1078,29 @@ export default function EnhancedReportPage() {
             )}
             <Button 
               variant="outline"
-              onClick={() => exportFullTaxPackage(reportData, currency, currencySymbol)}
+              onClick={async () => {
+                try {
+                  await exportFullTaxPackage(reportData, currency, currencySymbol);
+                  toast({
+                    title: "Tax Package Downloaded",
+                    description: "Your tax report package has been successfully downloaded as a ZIP file.",
+                  });
+                } catch (error) {
+                  console.error('Error exporting tax package:', error);
+                  toast({
+                    variant: "destructive",
+                    title: "Export Failed",
+                    description: error instanceof Error ? error.message : "An unexpected error occurred during export. Please try again.",
+                  });
+                }
+              }}
             >
               <Package className="mr-2 h-4 w-4" />
               Download Complete Package
             </Button>
           </div>
           <p className="text-xs text-muted-foreground mt-4">
-            The complete package includes: tax summary, capital gains, income events, tax lots, text report
+            The complete package downloads as a single ZIP file containing: tax summary, capital gains, income events, tax lots, text report
             {reportData.jurisdiction === 'US' && ', and IRS Form 8949 data'}.
           </p>
         </CardContent>

@@ -4,6 +4,7 @@
  */
 
 import { format } from 'date-fns';
+import JSZip from 'jszip';
 import type { EnhancedTaxReportOutput, DisposalDetail, IncomeDetail, TaxLotDetail } from './types';
 
 /**
@@ -379,50 +380,59 @@ export function downloadFile(content: string, filename: string, mimeType: string
 }
 
 /**
- * Export all tax data as a ZIP-like collection (multiple CSVs in one download)
+ * Export all tax data as a single ZIP file containing all reports
  */
-export function exportFullTaxPackage(
+export async function exportFullTaxPackage(
   report: EnhancedTaxReportOutput,
   currency: string,
   currencySymbol: string
 ) {
-  const timestamp = format(new Date(), 'yyyy-MM-dd');
-  
-  // Generate all reports
-  const summary = generateTaxSummaryCSV(report, currency);
-  const capitalGains = generateCapitalGainsCSV(report.disposals, report.jurisdiction, currency);
-  const income = generateIncomeCSV(report.income, currency);
-  const lots = generateTaxLotsCSV(report.lots, currency);
-  const textReport = generateTextReport(report, currency, currencySymbol);
-  const form8949 = generateForm8949Data(report.disposals, currency);
-  
-  // Download each file
-  downloadFile(summary, `bitcoin-tax-summary-${timestamp}.csv`, 'text/csv');
-  
-  // Give a slight delay between downloads to avoid browser blocking
-  setTimeout(() => {
-    downloadFile(capitalGains, `bitcoin-capital-gains-${timestamp}.csv`, 'text/csv');
-  }, 100);
-  
-  setTimeout(() => {
-    downloadFile(income, `bitcoin-income-${timestamp}.csv`, 'text/csv');
-  }, 200);
-  
-  setTimeout(() => {
-    downloadFile(lots, `bitcoin-tax-lots-${timestamp}.csv`, 'text/csv');
-  }, 300);
-  
-  setTimeout(() => {
-    downloadFile(textReport, `bitcoin-tax-report-${timestamp}.txt`, 'text/plain');
-  }, 400);
-  
-  if (report.jurisdiction === 'US') {
-    setTimeout(() => {
-      downloadFile(form8949.shortTerm, `form-8949-short-term-${timestamp}.csv`, 'text/csv');
-    }, 500);
+  try {
+    const timestamp = format(new Date(), 'yyyy-MM-dd');
     
-    setTimeout(() => {
-      downloadFile(form8949.longTerm, `form-8949-long-term-${timestamp}.csv`, 'text/csv');
-    }, 600);
+    // Create a new ZIP file
+    const zip = new JSZip();
+    
+    // Generate all reports
+    const summary = generateTaxSummaryCSV(report, currency);
+    const capitalGains = generateCapitalGainsCSV(report.disposals, report.jurisdiction, currency);
+    const income = generateIncomeCSV(report.income, currency);
+    const lots = generateTaxLotsCSV(report.lots, currency);
+    const textReport = generateTextReport(report, currency, currencySymbol);
+    const form8949 = generateForm8949Data(report.disposals, currency);
+    
+    // Add all files to the ZIP
+    zip.file(`bitcoin-tax-summary-${timestamp}.csv`, summary);
+    zip.file(`bitcoin-capital-gains-${timestamp}.csv`, capitalGains);
+    zip.file(`bitcoin-income-${timestamp}.csv`, income);
+    zip.file(`bitcoin-tax-lots-${timestamp}.csv`, lots);
+    zip.file(`bitcoin-tax-report-${timestamp}.txt`, textReport);
+    
+    // Add Form 8949 for US jurisdiction
+    if (report.jurisdiction === 'US') {
+      zip.file(`form-8949-short-term-${timestamp}.csv`, form8949.shortTerm);
+      zip.file(`form-8949-long-term-${timestamp}.csv`, form8949.longTerm);
+    }
+    
+    // Generate the ZIP file as a blob with compression
+    const zipBlob = await zip.generateAsync({ 
+      type: 'blob',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 6 }
+    });
+    
+    // Download the ZIP file
+    const url = URL.createObjectURL(zipBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `bitcoin-tax-package-${timestamp}.zip`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Failed to generate tax package ZIP:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    throw new Error(`Failed to generate tax package: ${errorMessage}`);
   }
 }
