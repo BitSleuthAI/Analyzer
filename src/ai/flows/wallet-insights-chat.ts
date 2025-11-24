@@ -791,6 +791,43 @@ export async function walletInsightsChat(input: WalletInsightsChatInput): Promis
   return walletInsightsChatFlow(input);
 }
 
+const MAX_GENERATION_ATTEMPTS = 2;
+const STRUCTURED_OUTPUT_REMINDER =
+  'REMINDER: Your final response MUST be a valid JSON object containing an "answer" string in Markdown, an optional "chart" object (or null), and 1-3 "followUpSuggestions". Never respond with just null.';
+
+const extractErrorMessage = (error: unknown): string => {
+  if (!error) {
+    return '';
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  if (error instanceof Error) {
+    return error.message || (error.cause instanceof Error ? error.cause.message || '' : '');
+  }
+  if (typeof error === 'object') {
+    const maybeMessage =
+      (error as any)?.message ||
+      ((error as any)?.cause instanceof Error ? (error as any).cause.message : (error as any)?.cause?.message);
+    if (typeof maybeMessage === 'string') {
+      return maybeMessage;
+    }
+  }
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return '';
+  }
+};
+
+const isSchemaValidationError = (error: unknown): boolean => {
+  const message = extractErrorMessage(error);
+  if (!message) {
+    return false;
+  }
+  return message.includes('Schema validation failed') || message.includes('INVALID_ARGUMENT');
+};
+
 const systemPrompt = `You are BitSleuth, a helpful AI assistant and expert Bitcoin analyst. Your role is to answer questions about Bitcoin, blockchain technology, market conditions, wallet analysis, and security.
 
 **IMPORTANT CURRENCY GUIDELINES:**
@@ -1126,34 +1163,75 @@ ${input.question}
       `;
 
 
-      const { output } = await ai.generate({
-          system: systemPrompt,
-          prompt: userPrompt,
-          messages: history,
-          output: {
-              schema: WalletInsightsChatOutputSchema,
-          },
-          tools: [securityRecommendationsTool, enhancedTransactionAnalysisTool, enhancedAddressAnalysisTool, marketAnalysisTool, bitcoinNewsAnalysisTool, investmentInsightsTool, bitcoinCAGRCalculatorTool, bitcoinPensionAnalysisTool],
-      });
+      let generatedOutput: WalletInsightsChatOutput | null = null;
+      let lastGenerationError: unknown = null;
 
-      if (!output) {
-        return {
-          answer:
-            "I'm sorry, I encountered an issue and couldn't generate a response. Please try rephrasing your question.",
-          chart: null,
-          followUpSuggestions: [],
-        };
+      for (let attempt = 1; attempt <= MAX_GENERATION_ATTEMPTS; attempt++) {
+        const promptWithReminder =
+          attempt === 1 ? userPrompt : `${userPrompt}\n\n${STRUCTURED_OUTPUT_REMINDER}`;
+
+        try {
+          const { output } = await ai.generate({
+            system: systemPrompt,
+            prompt: promptWithReminder,
+            messages: history,
+            output: {
+              schema: WalletInsightsChatOutputSchema,
+            },
+            tools: [
+              securityRecommendationsTool,
+              enhancedTransactionAnalysisTool,
+              enhancedAddressAnalysisTool,
+              marketAnalysisTool,
+              bitcoinNewsAnalysisTool,
+              investmentInsightsTool,
+              bitcoinCAGRCalculatorTool,
+              bitcoinPensionAnalysisTool,
+            ],
+          });
+
+          if (output) {
+            generatedOutput = output;
+            break;
+          }
+
+          lastGenerationError = new Error('The AI returned an empty response.');
+          if (attempt < MAX_GENERATION_ATTEMPTS) {
+            console.warn('walletInsightsChatFlow: Empty output from AI. Retrying...');
+          }
+        } catch (error) {
+          lastGenerationError = error;
+          if (isSchemaValidationError(error) && attempt < MAX_GENERATION_ATTEMPTS) {
+            console.warn('walletInsightsChatFlow: Structured output validation failed. Retrying with reminder.');
+            continue;
+          }
+          throw error;
+        }
       }
-      return output;
+
+      if (generatedOutput) {
+        return generatedOutput;
+      }
+
+      console.warn('walletInsightsChatFlow: Unable to generate structured output after retries.', lastGenerationError);
+      return {
+        answer:
+          "I ran into trouble formatting my answer just now, but nothing is wrong with your question. Please try asking again in a moment.",
+        chart: null,
+        followUpSuggestions: [],
+      };
     } catch (e: any) {
       console.error("Error in walletInsightsChatFlow:", e);
-      const errorMessage = e?.message || 'Unknown error';
+      const errorMessage = extractErrorMessage(e) || 'Unknown error';
       const isApiKeyError = errorMessage.includes('API key') || errorMessage.includes('OPENAI_API_KEY') || errorMessage.includes('OPENAI_CHATGPT_API_KEY') || errorMessage.includes('401') || errorMessage.includes('403');
+      const schemaError = isSchemaValidationError(e);
       
       return {
           answer: isApiKeyError
             ? "⚠️ **AI Service Configuration Issue**\n\nThe AI chat feature requires a valid OpenAI API key to be configured. Please contact the administrator to set up the OPENAI_API_KEY environment variable (or OPENAI_CHATGPT_API_KEY for backward compatibility).\n\nYou can still use other features of BitSleuth, such as transaction viewing, analysis charts, and security recommendations."
-            : `I'm sorry, I encountered an error while processing your request: ${errorMessage}\n\nPlease try again or rephrase your question.`,
+            : schemaError
+              ? "I couldn't format a complete response just now, but there's nothing wrong with your request. Please try asking again and I'll take another look."
+              : `I'm sorry, I encountered an error while processing your request: ${errorMessage}\n\nPlease try again or rephrase your question.`,
           chart: null,
           followUpSuggestions: [],
       };
