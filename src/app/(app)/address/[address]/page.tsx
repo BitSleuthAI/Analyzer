@@ -199,7 +199,7 @@ export default function AddressDetailsPage() {
           <CardHeader className="bg-gradient-to-br from-primary/5 via-transparent to-transparent border-b">
               <div className="flex items-center gap-4">
                   <IconContainer variant="orange">
-                      <Bitcoin className="h-6 w-6" />
+                      <Bitcoin className="h-5 w-5" />
                   </IconContainer>
                   <div>
                       <CardTitle className="font-mono break-all">{address}</CardTitle>
