@@ -19,6 +19,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { IconContainer } from '@/components/ui/icon-container';
 import { ArrowLeft, AlertCircle, Copy, Box, Download, Loader2 } from 'lucide-react';
 import { FullPageLoader, ErrorDisplay } from '@/components/ui/loader';
 import { useToast } from '@/hooks/use-toast';
@@ -27,9 +28,9 @@ import { getBlockDetails } from '@/lib/mempool';
 
 function DetailItem({ label, value, children, isMono = true }: { label: string; value?: React.ReactNode; children?: React.ReactNode, isMono?: boolean }) {
   return (
-    <div className="flex justify-between items-start text-sm py-1.5 border-b border-border/50">
-      <span className="text-muted-foreground">{label}</span>
-      <div className={`text-right break-all flex items-center gap-2 ${isMono ? 'font-mono' : ''}`}>
+    <div className="flex justify-between items-baseline text-xs sm:text-sm py-1 gap-2">
+      <span className="text-muted-foreground flex-shrink-0">{label}</span>
+      <div className={`text-right break-all flex items-center gap-2 min-w-0 ${isMono ? 'font-mono' : ''}`}>
         {value ?? children}
       </div>
     </div>
@@ -128,41 +129,46 @@ export default function BlockDetailsPage() {
   const block = pageData;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-4 sm:space-y-6 px-2 sm:px-0">
         <div>
-            <Button variant="ghost" onClick={() => router.back()} className='text-muted-foreground'>
+            <Button variant="ghost" onClick={() => router.back()} className='text-muted-foreground' size="sm">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Mempool
             </Button>
         </div>
 
-        <Card>
-            <CardHeader>
-                <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                        <Box className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                        <CardTitle className="text-xl">Bitcoin Block #{block.height.toLocaleString()}</CardTitle>
-                        <CardDescription>
+        <Card className="border-2 shadow-md">
+            <CardHeader className="bg-gradient-to-br from-primary/5 via-transparent to-transparent border-b">
+                <div className="flex items-center gap-3 sm:gap-4">
+                    <IconContainer variant="primary">
+                        <Box className="h-5 w-5 sm:h-6 sm:w-6" />
+                    </IconContainer>
+                    <div className="min-w-0">
+                        <CardTitle className="text-base sm:text-lg md:text-xl">Bitcoin Block #{block.height.toLocaleString()}</CardTitle>
+                        <CardDescription className="text-xs sm:text-sm mt-1">
                             Mined on {new Date(block.timestamp * 1000).toLocaleString()}
                         </CardDescription>
                     </div>
                 </div>
-                <div className="text-xs text-muted-foreground font-mono break-all mt-4 flex items-center gap-2">
-                    <span>{block.id}</span>
-                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleCopy(block.id)}>
-                        <Copy className="h-4 w-4"/>
+                <div className="text-xs text-muted-foreground font-mono break-all mt-4 flex items-start gap-2">
+                    <span className="flex-1">{block.id}</span>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={() => handleCopy(block.id)} aria-label="Copy block hash">
+                        <Copy className="h-3 w-3 sm:h-4 sm:w-4"/>
                     </Button>
                 </div>
             </CardHeader>
         </Card>
 
-        <Card>
-            <CardHeader>
-                <CardTitle>Block Details</CardTitle>
+        <Card className="border-2 shadow-md">
+            <CardHeader className="bg-gradient-to-br from-blue-500/5 via-transparent to-transparent border-b">
+                <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                    <IconContainer variant="blue">
+                        <AlertCircle className="h-5 w-5" />
+                    </IconContainer>
+                    Block Details
+                </CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-1">
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 sm:gap-x-8 gap-y-1">
                 <DetailItem label="Transactions" value={block.tx_count.toLocaleString()} isMono={false} />
                 <DetailItem label="Size" value={`${(block.size / 1_000_000).toFixed(2)} MB`} />
                 <DetailItem label="Weight" value={`${(block.weight / 1_000_000).toFixed(2)} MWU`} />
@@ -179,15 +185,22 @@ export default function BlockDetailsPage() {
             </CardContent>
         </Card>
         
-        <Card>
-            <CardHeader>
-                <CardTitle>Transactions</CardTitle>
-                <CardDescription>List of transactions included in this block.</CardDescription>
+        <Card className="border-2 shadow-md">
+            <CardHeader className="bg-gradient-to-br from-emerald-500/5 via-transparent to-transparent border-b">
+                <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                    <IconContainer variant="emerald">
+                        <Download className="h-5 w-5" />
+                    </IconContainer>
+                    Transactions ({block.tx_count.toLocaleString()})
+                </CardTitle>
+                <CardDescription className="text-xs sm:text-sm mt-2">
+                    List of transactions included in this block.
+                </CardDescription>
             </CardHeader>
             <CardContent>
                 <Table>
                     <TableHeader>
-                        <TableRow>
+                        <TableRow className="border-b-2 hover:bg-transparent">
                             <TableHead>Transaction ID</TableHead>
                             <TableHead className="text-right">Value</TableHead>
                             <TableHead className="text-right hidden md:table-cell">Fee (sats)</TableHead>
@@ -196,13 +209,13 @@ export default function BlockDetailsPage() {
                     </TableHeader>
                     <TableBody>
                         {transactions.map(tx => (
-                            <TableRow key={tx.txid}>
+                            <TableRow key={tx.txid} className="hover:bg-muted/50 transition-colors">
                                 <TableCell className="font-mono">
                                     <Link href={`/transactions/${tx.txid}`} className="hover:underline text-primary text-xs cursor-pointer" title={tx.txid}>
                                         {`${tx.txid.slice(0, 10)}...${tx.txid.slice(-10)}`}
                                     </Link>
                                 </TableCell>
-                                <TableCell className="text-right font-mono">{(tx.value / 1e8).toFixed(4)} BTC</TableCell>
+                                <TableCell className="text-right font-mono text-sm">{(tx.value / 1e8).toFixed(4)} BTC</TableCell>
                                 <TableCell className="text-right hidden md:table-cell">{tx.fee.toLocaleString()}</TableCell>
                                 <TableCell className="text-right hidden md:table-cell">{tx.size.toLocaleString()}</TableCell>
                             </TableRow>
