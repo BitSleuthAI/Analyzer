@@ -12,7 +12,8 @@
     "build:clean": "rm -rf .next && next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@bitcoinerlab/secp256k1": "^1.1.1",
@@ -85,7 +86,8 @@
     "genkit-cli": "1.24.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "^4.0.14"
   },
   "overrides": {
     "tiny-secp256k1": "npm:@bitcoinerlab/secp256k1@^1.1.1"
