@@ -479,6 +479,9 @@ export default function BasicReportPage() {
     const isGain = summary.totalValueChangePercentage >= 0;
 
     return (
+        // Track loading state for Generate Report button
+        const [isReportLoading, setIsReportLoading] = useState(false);
+
         <div className="space-y-6">
             <Tabs defaultValue="overview" className="w-full">
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
@@ -488,7 +491,14 @@ export default function BasicReportPage() {
                     </TabsList>
                     <div className="w-full sm:w-auto flex gap-2">
                         <Button 
-                            onClick={generateReport}
+                            onClick={async () => {
+                                setIsReportLoading(true);
+                                try {
+                                  await generateReport();
+                                } finally {
+                                  setIsReportLoading(false);
+                                }
+                            }}
                             disabled={isReportLoading}
                             variant="outline"
                             className="whitespace-nowrap shadow-sm hover:shadow-md transition-shadow"
