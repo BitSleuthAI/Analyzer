@@ -20,6 +20,44 @@ const HistoryMessageSchema = z.object({
     content: z.string(),
 }).passthrough();
 
+const MAX_HISTORY_MESSAGES = 8;
+const MAX_HISTORY_CHARS = 1200;
+
+const trimMessageContent = (content: string): string => {
+  if (content.length <= MAX_HISTORY_CHARS) {
+    return content;
+  }
+
+  return `${content.slice(0, MAX_HISTORY_CHARS)}…`;
+};
+
+const minifyJsonString = (value: string): string => {
+  try {
+    return JSON.stringify(JSON.parse(value));
+  } catch {
+    return value;
+  }
+};
+
+const buildModelHistory = (
+  history: WalletInsightsChatInput['history']
+): { role: 'user' | 'model'; content: { text: string }[] }[] => {
+  const trimmedHistory = (history || [])
+    .slice(-MAX_HISTORY_MESSAGES)
+    .filter((item) => item.role !== 'system')
+    .map((item) => ({
+      role: item.role === 'assistant' ? 'model' : 'user',
+      content: [{ text: trimMessageContent(item.content) }],
+    })) as { role: 'user' | 'model'; content: { text: string }[] }[];
+
+  // Ensure the conversation starts with a user message to reduce model confusion
+  while (trimmedHistory.length > 0 && trimmedHistory[0].role === 'model') {
+    trimmedHistory.shift();
+  }
+
+  return trimmedHistory;
+};
+
 const WalletInsightsChatInputSchema = z.object({
   question: z.string().describe('The user question about their Bitcoin wallet.'),
   walletData: z.string().describe('JSON string containing wallet data including balance, transaction history, security analysis, UTXOs, etc.'),
@@ -791,6 +829,43 @@ export async function walletInsightsChat(input: WalletInsightsChatInput): Promis
   return walletInsightsChatFlow(input);
 }
 
+const MAX_GENERATION_ATTEMPTS = 2;
+const STRUCTURED_OUTPUT_REMINDER =
+  'REMINDER: Your final response MUST be a valid JSON object containing an "answer" string in Markdown, an optional "chart" object (or null), and 1-3 "followUpSuggestions". Never respond with just null.';
+
+const extractErrorMessage = (error: unknown): string => {
+  if (!error) {
+    return '';
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  if (error instanceof Error) {
+    return error.message || (error.cause instanceof Error ? error.cause.message || '' : '');
+  }
+  if (typeof error === 'object') {
+    const maybeMessage =
+      (error as any)?.message ||
+      ((error as any)?.cause instanceof Error ? (error as any).cause.message : (error as any)?.cause?.message);
+    if (typeof maybeMessage === 'string') {
+      return maybeMessage;
+    }
+  }
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return '';
+  }
+};
+
+const isSchemaValidationError = (error: unknown): boolean => {
+  const message = extractErrorMessage(error);
+  if (!message) {
+    return false;
+  }
+  return message.includes('Schema validation failed') || message.includes('INVALID_ARGUMENT');
+};
+
 const systemPrompt = `You are BitSleuth, a helpful AI assistant and expert Bitcoin analyst. Your role is to answer questions about Bitcoin, blockchain technology, market conditions, wallet analysis, and security.
 
 **IMPORTANT CURRENCY GUIDELINES:**
@@ -917,7 +992,7 @@ For Security Analysis: "Would you like specific steps to improve your wallet sec
 
 ### Enhanced Bitcoin Analysis Tools
 
-You have access to advanced Bitcoin analysis tools powered by Gemini 2.0 Flash Lite:
+You have access to advanced Bitcoin analysis tools powered by GPT-4o Mini:
 
 1. **Enhanced Transaction Analysis** (\`analyzeBitcoinTransaction\`):
    - Provides detailed privacy scoring (0-100)
@@ -1077,24 +1152,15 @@ const walletInsightsChatFlow = ai.defineFlow(
   },
   async (input) => {
     try {
-      // Map and filter the history, removing system messages
-      let history = (input.history || []).map(item => ({
-          role: item.role === 'assistant' ? 'model' : 'user',
-          content: [{text: item.content}]
-      })).filter(item => item.role !== 'system') as ({role: 'user' | 'model', content: {text: string}[]}[]);
-      
-      // Ensure the first message is always from the user (Gemini API requirement)
-      // If history starts with a model message, remove leading model messages
-      while (history.length > 0 && history[0].role === 'model') {
-        history = history.slice(1);
-      }
+      const history = buildModelHistory(input.history);
+      const walletData = minifyJsonString(input.walletData);
 
       const userPrompt = `
 Analyze my request based on our conversation history and respond appropriately to the question type.
 
 **My Wallet Data:**
 \`\`\`json
-${input.walletData}
+${walletData}
 \`\`\`
 
 **My Preferred Currency:**
@@ -1126,34 +1192,75 @@ ${input.question}
       `;
 
 
-      const { output } = await ai.generate({
-          system: systemPrompt,
-          prompt: userPrompt,
-          messages: history,
-          output: {
-              schema: WalletInsightsChatOutputSchema,
-          },
-          tools: [securityRecommendationsTool, enhancedTransactionAnalysisTool, enhancedAddressAnalysisTool, marketAnalysisTool, bitcoinNewsAnalysisTool, investmentInsightsTool, bitcoinCAGRCalculatorTool, bitcoinPensionAnalysisTool],
-      });
+      let generatedOutput: WalletInsightsChatOutput | null = null;
+      let lastGenerationError: unknown = null;
 
-      if (!output) {
-        return {
-          answer:
-            "I'm sorry, I encountered an issue and couldn't generate a response. Please try rephrasing your question.",
-          chart: null,
-          followUpSuggestions: [],
-        };
+      for (let attempt = 1; attempt <= MAX_GENERATION_ATTEMPTS; attempt++) {
+        const promptWithReminder =
+          attempt === 1 ? userPrompt : `${userPrompt}\n\n${STRUCTURED_OUTPUT_REMINDER}`;
+
+        try {
+          const { output } = await ai.generate({
+            system: systemPrompt,
+            prompt: promptWithReminder,
+            messages: history,
+            output: {
+              schema: WalletInsightsChatOutputSchema,
+            },
+            tools: [
+              securityRecommendationsTool,
+              enhancedTransactionAnalysisTool,
+              enhancedAddressAnalysisTool,
+              marketAnalysisTool,
+              bitcoinNewsAnalysisTool,
+              investmentInsightsTool,
+              bitcoinCAGRCalculatorTool,
+              bitcoinPensionAnalysisTool,
+            ],
+          });
+
+          if (output) {
+            generatedOutput = output;
+            break;
+          }
+
+          lastGenerationError = new Error('The AI returned an empty response.');
+          if (attempt < MAX_GENERATION_ATTEMPTS) {
+            console.warn('walletInsightsChatFlow: Empty output from AI. Retrying...');
+          }
+        } catch (error) {
+          lastGenerationError = error;
+          if (isSchemaValidationError(error) && attempt < MAX_GENERATION_ATTEMPTS) {
+            console.warn('walletInsightsChatFlow: Structured output validation failed. Retrying with reminder.');
+            continue;
+          }
+          throw error;
+        }
       }
-      return output;
+
+      if (generatedOutput) {
+        return generatedOutput;
+      }
+
+      console.warn('walletInsightsChatFlow: Unable to generate structured output after retries.', lastGenerationError);
+      return {
+        answer:
+          "I ran into trouble formatting my answer just now, but nothing is wrong with your question. Please try asking again in a moment.",
+        chart: null,
+        followUpSuggestions: [],
+      };
     } catch (e: any) {
       console.error("Error in walletInsightsChatFlow:", e);
-      const errorMessage = e?.message || 'Unknown error';
-      const isApiKeyError = errorMessage.includes('API key') || errorMessage.includes('GOOGLE_GENAI_API_KEY') || errorMessage.includes('401') || errorMessage.includes('403');
+      const errorMessage = extractErrorMessage(e) || 'Unknown error';
+      const isApiKeyError = errorMessage.includes('API key') || errorMessage.includes('OPENAI_API_KEY') || errorMessage.includes('OPENAI_CHATGPT_API_KEY') || errorMessage.includes('401') || errorMessage.includes('403');
+      const schemaError = isSchemaValidationError(e);
       
       return {
-          answer: isApiKeyError 
-            ? "⚠️ **AI Service Configuration Issue**\n\nThe AI chat feature requires a valid Google AI API key to be configured. Please contact the administrator to set up the GOOGLE_GENAI_API_KEY environment variable.\n\nYou can still use other features of BitSleuth, such as transaction viewing, analysis charts, and security recommendations."
-            : `I'm sorry, I encountered an error while processing your request: ${errorMessage}\n\nPlease try again or rephrase your question.`,
+          answer: isApiKeyError
+            ? "⚠️ **AI Service Configuration Issue**\n\nThe AI chat feature requires a valid OpenAI API key to be configured. Please contact the administrator to set up the OPENAI_API_KEY environment variable (or OPENAI_CHATGPT_API_KEY for backward compatibility).\n\nYou can still use other features of BitSleuth, such as transaction viewing, analysis charts, and security recommendations."
+            : schemaError
+              ? "I couldn't format a complete response just now, but there's nothing wrong with your request. Please try asking again and I'll take another look."
+              : `I'm sorry, I encountered an error while processing your request: ${errorMessage}\n\nPlease try again or rephrase your question.`,
           chart: null,
           followUpSuggestions: [],
       };
