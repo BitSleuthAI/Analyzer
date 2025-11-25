@@ -488,7 +488,14 @@ export default function BasicReportPage() {
                     </TabsList>
                     <div className="w-full sm:w-auto flex gap-2">
                         <Button 
-                            onClick={generateReport}
+                            onClick={async () => {
+                                setIsReportLoading(true);
+                                try {
+                                  await generateReport();
+                                } finally {
+                                  setIsReportLoading(false);
+                                }
+                            }}
                             disabled={isReportLoading}
                             variant="outline"
                             className="whitespace-nowrap shadow-sm hover:shadow-md transition-shadow"

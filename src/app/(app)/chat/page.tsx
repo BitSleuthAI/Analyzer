@@ -198,7 +198,7 @@ export default function ChatPage() {
 
       recognition.onerror = (event: any) => {
         console.warn('Speech recognition error:', event.error);
-        let description = 'An unknown error occurred with speech recognition.';
+        let description;
 
         switch (event.error) {
             case 'network':
