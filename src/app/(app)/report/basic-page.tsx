@@ -479,9 +479,6 @@ export default function BasicReportPage() {
     const isGain = summary.totalValueChangePercentage >= 0;
 
     return (
-        // Track loading state for Generate Report button
-        const [isReportLoading, setIsReportLoading] = useState(false);
-
         <div className="space-y-6">
             <Tabs defaultValue="overview" className="w-full">
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
