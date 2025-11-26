@@ -7,7 +7,6 @@
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 const isDevelopment = process.env.NODE_ENV === 'development';
-const isClient = typeof window !== 'undefined';
 
 class Logger {
   private shouldLog(level: LogLevel): boolean {
