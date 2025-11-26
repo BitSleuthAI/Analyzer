@@ -15,6 +15,7 @@ import { resetChunkRetry } from '@/lib/chunk-retry-service';
 import { logger } from '@/lib/logger';
 
 const SUPPORTED_CURRENCIES: Currency[] = ['USD', 'EUR', 'GBP'];
+const RECOMMENDATIONS_CACHE_TTL_MS = 1000 * 60 * 30; // 30 minutes
 
 type WalletState = {
   activeXpub: string | null;
@@ -647,25 +648,70 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }, [activeXpub]);
 
   const refreshRecommendations = useCallback(async () => {
-    if (!data) return;
+    if (!data || !activeXpub) return;
 
-    setRecommendations([]);
+    const walletSummary = JSON.stringify({
+      opsecThreat: data.opsecThreat,
+      dustUtxoCount: data.dustUtxoCount,
+    });
+
+    const cacheKey = `securityRecommendations:${activeXpub}`;
+
+    let hasCachedRecommendations = false;
 
     try {
-      const walletSummary = JSON.stringify({
-        opsecThreat: data.opsecThreat,
-        dustUtxoCount: data.dustUtxoCount,
-      });
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached) as {
+          recommendations: SecurityRecommendation[];
+          timestamp: number;
+          summary: string;
+        };
 
+        const isExpired = Date.now() - parsed.timestamp > RECOMMENDATIONS_CACHE_TTL_MS;
+        const hasRelevantChanges = parsed.summary !== walletSummary;
+
+        if (!isExpired && !hasRelevantChanges) {
+          setRecommendations(parsed.recommendations);
+          return;
+        }
+
+        // Keep showing cached recommendations while refreshing if possible
+        if (parsed.recommendations) {
+          setRecommendations(parsed.recommendations);
+          hasCachedRecommendations = true;
+        }
+      }
+    } catch (e) {
+      logger.warn('Failed to read cached recommendations:', e);
+    }
+
+    if (!hasCachedRecommendations) {
+      setRecommendations([]);
+    }
+
+    try {
       const recommendationsResult = await getSecurityRecommendations({ walletSummary });
+      const recs = recommendationsResult.recommendations ?? [];
 
-      if (recommendationsResult.recommendations && recommendationsResult.recommendations.length > 0) {
-        setRecommendations(recommendationsResult.recommendations);
+      setRecommendations(recs);
+
+      try {
+        localStorage.setItem(
+          cacheKey,
+          JSON.stringify({
+            recommendations: recs,
+            timestamp: Date.now(),
+            summary: walletSummary,
+          }),
+        );
+      } catch (cacheError) {
+        logger.warn('Failed to cache security recommendations:', cacheError);
       }
     } catch (e) {
       logger.error("Failed to refresh security recommendations:", e);
     }
-  }, [data]);
+  }, [activeXpub, data]);
 
   useEffect(() => {
     if (!data || isInitialAiContentLoaded) {
