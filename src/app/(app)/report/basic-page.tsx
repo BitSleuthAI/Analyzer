@@ -18,15 +18,9 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { DateRange } from 'react-day-picker';
-import { addDays, format, subYears, startOfYear, endOfYear, getYear, startOfToday, isSameDay, subDays, subMonths, startOfDay } from 'date-fns';
+import { format, startOfYear, endOfYear, getYear, isSameDay, subDays, subMonths, startOfDay } from 'date-fns';
 import { Calendar as CalendarIcon, Info, TrendingUp, TrendingDown, ChevronsUpDown, Bitcoin as BitcoinIcon, X, ArrowUp, ArrowDown } from 'lucide-react';
 
 import { useWallet } from '@/contexts/wallet-context';

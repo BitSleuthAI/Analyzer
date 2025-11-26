@@ -10,7 +10,7 @@
 
 import { z } from 'zod';
 import type { WalletData, Transaction, Currency, Holding } from '@/lib/types';
-import { eachDayOfInterval, startOfDay, isWithinInterval, compareAsc, format, subDays, addDays, differenceInDays } from 'date-fns';
+import { eachDayOfInterval, startOfDay, isWithinInterval, format, subDays, addDays, differenceInDays } from 'date-fns';
 
 // The input schema for the tax report flow
 const TaxReportInputSchema = z.object({
