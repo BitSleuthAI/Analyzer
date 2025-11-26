@@ -58,7 +58,6 @@ const MempoolVisualizer = ({ blocks }: { blocks: MempoolBlock[] }) => {
                             <TooltipTrigger asChild>
                                 <div className="w-full h-8 bg-muted rounded flex overflow-hidden border border-border/50 cursor-help">
                                     {block.feeRange.map((fee, i, arr) => {
-                                        const nextFee = arr[i + 1] || fee;
                                         return (
                                             <div
                                                 key={i}
