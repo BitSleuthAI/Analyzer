@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { IconContainer } from '@/components/ui/icon-container';
 import { FullPageLoader, ErrorDisplay } from '@/components/ui/loader';
 import { getMarketPageData } from '@/lib/market';
-import type { MarketPageData, Currency, FearAndGreedIndex } from '@/lib/types';
+import type { MarketPageData, Currency } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Bar, ComposedChart, Cell } from 'recharts';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';

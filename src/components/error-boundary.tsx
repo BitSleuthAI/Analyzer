@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Component, ErrorInfo, ReactNode, useEffect } from 'react';
+import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { handleChunkError } from '@/lib/chunk-retry-service';
 
 interface Props {
