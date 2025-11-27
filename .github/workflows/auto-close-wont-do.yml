@@ -12,8 +12,6 @@ on:
         required: false
         default: "Won't Do"
         type: string
-  issues:
-    types: [edited]
 
 jobs:
   close_wont_do:
@@ -35,13 +33,13 @@ jobs:
               Number(core.getInput("issue_number"));
 
             if (!issue_number) {
-              core.setFailed("No issue number provided. This workflow runs on issue edits or manual dispatch with an issue number input.");
+              core.setFailed("No issue number provided. This workflow must be manually dispatched with an issue number input.");
               return;
             }
 
-            // For issues event, check if the status was changed to "Won't Do"
-            // Note: GitHub doesn't provide issue status in the payload for regular issue events.
-            // This workflow relies on manual dispatch with the status parameter.
+            // Get the status parameter (only available via workflow_dispatch)
+            // Note: GitHub Actions does not support projects_v2_item as a trigger event,
+            // so this workflow must be manually triggered to close issues.
             const status = core.getInput("status");
 
             if (status !== "Won't Do") {

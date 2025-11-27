@@ -9,15 +9,14 @@ The `auto-close-wont-do.yml` workflow automatically closes issues when their sta
 - **`workflow_dispatch`** - Manual trigger with inputs:
   - `issue_number` (required) - The issue number to process
   - `status` (optional, default: "Won't Do") - The status to validate before closing
-- **`issues: types: [edited]`** - Triggers when an issue is edited
 
 ### Important Notes
 
-⚠️ **Projects V2 Events Not Supported**: The `projects_v2_item` event is NOT supported as a workflow trigger by GitHub Actions. While these events exist as webhooks, they cannot be used in the `on:` section of workflow files.
+⚠️ **Projects V2 Events Not Supported**: The `projects_v2_item` event is NOT supported as a workflow trigger by GitHub Actions. While this event exists as a webhook, it cannot be used in the `on:` section of workflow files.
 
-- GitHub Actions does not support `projects_v2` or `projects_v2_item` as workflow triggers
-- The workflow relies on manual dispatch with the status parameter
-- GitHub does not provide project status information in standard issue event payloads
+- GitHub Actions does not support `projects_v2_item` as a workflow trigger
+- This workflow must be manually triggered using `workflow_dispatch`
+- GitHub does not provide a native way to trigger workflows when GitHub Projects V2 status fields change
 
 ### Usage
 
