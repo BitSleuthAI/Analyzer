@@ -11,6 +11,35 @@ import {ai} from '@/ai/genkit';
 import {z} from 'zod';
 import type { WalletData, BitcoinTransactionAnalysis, BitcoinAddressAnalysis } from '@/lib/types';
 
+const PROMPT_CACHE_TTL_SECONDS = 60 * 60; // 1 hour TTL for reusable prompt scaffolding
+
+type CacheEntry<T> = { value: T; expiresAt: number };
+
+const transactionAnalysisCache = new Map<string, CacheEntry<EnhancedTransactionAnalysisOutput>>();
+const addressAnalysisCache = new Map<string, CacheEntry<EnhancedAddressAnalysisOutput>>();
+
+const getCachedValue = <T>(cache: Map<string, CacheEntry<T>>, key: string): T | null => {
+  const entry = cache.get(key);
+
+  if (!entry) {
+    return null;
+  }
+
+  if (entry.expiresAt < Date.now()) {
+    cache.delete(key);
+    return null;
+  }
+
+  return entry.value;
+};
+
+const setCachedValue = <T>(cache: Map<string, CacheEntry<T>>, key: string, value: T): void => {
+  cache.set(key, {
+    value,
+    expiresAt: Date.now() + PROMPT_CACHE_TTL_SECONDS * 1000,
+  });
+};
+
 // Input schema for enhanced transaction analysis
 const EnhancedTransactionAnalysisInputSchema = z.object({
   transactionId: z.string().describe('The ID of the transaction to analyze.'),
@@ -143,6 +172,21 @@ const enhancedTransactionAnalysisFlow = ai.defineFlow(
         dustUtxoCount: walletData.dustUtxoCount,
       };
 
+      const transactionCacheKey = JSON.stringify({
+        transactionId: input.transactionId,
+        transaction,
+        walletContext,
+      });
+
+      const cachedTransactionAnalysis = getCachedValue(
+        transactionAnalysisCache,
+        transactionCacheKey
+      );
+
+      if (cachedTransactionAnalysis) {
+        return cachedTransactionAnalysis;
+      }
+
       const { output } = await transactionAnalysisPrompt({
         transactionData: JSON.stringify(transaction),
         walletContext: JSON.stringify(walletContext),
@@ -161,9 +205,11 @@ const enhancedTransactionAnalysisFlow = ai.defineFlow(
         };
       }
 
+      setCachedValue(transactionAnalysisCache, transactionCacheKey, output);
+
       return output;
     } catch (e) {
-      console.error("Error in enhancedTransactionAnalysisFlow:", e);
+      console.error('Error in enhancedTransactionAnalysisFlow:', e);
       const errorMessage = e instanceof Error ? e.message : String(e);
       return {
         analysis: {
@@ -260,9 +306,21 @@ const enhancedAddressAnalysisFlow = ai.defineFlow(
         };
       }
       
-      const relatedTransactions = walletData.transactions.filter(tx => 
+      const relatedTransactions = walletData.transactions.filter(tx =>
           tx.fromAddress.includes(input.address) || tx.toAddress.includes(input.address)
       ).slice(0, 5); // Limit to 5 for context
+
+      const addressCacheKey = JSON.stringify({
+        address: input.address,
+        addressInfo,
+        relatedTransactions,
+      });
+
+      const cachedAddressAnalysis = getCachedValue(addressAnalysisCache, addressCacheKey);
+
+      if (cachedAddressAnalysis) {
+        return cachedAddressAnalysis;
+      }
 
       const { output } = await addressAnalysisPrompt({
         address: input.address,
@@ -282,9 +340,11 @@ const enhancedAddressAnalysisFlow = ai.defineFlow(
         };
       }
 
+      setCachedValue(addressAnalysisCache, addressCacheKey, output);
+
       return output;
     } catch (e) {
-      console.error("Error in enhancedAddressAnalysisFlow:", e);
+      console.error('Error in enhancedAddressAnalysisFlow:', e);
       const errorMessage = e instanceof Error ? e.message : String(e);
       return {
         analysis: {

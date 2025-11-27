@@ -28,6 +28,31 @@ const MAX_TX_FOR_MODEL = 40;
 const MAX_UTXO_FOR_MODEL = 80;
 const MAX_ADDRESS_FOR_MODEL = 25;
 const WALLET_JSON_CHAR_BUDGET = 14000;
+const PROMPT_CACHE_TTL_SECONDS = 60 * 60; // 1 hour TTL for stable instruction blocks
+
+type CacheEntry<T> = { value: T; expiresAt: number };
+
+const getCachedValue = <T>(cache: Map<string, CacheEntry<T>>, key: string): T | null => {
+  const entry = cache.get(key);
+
+  if (!entry) {
+    return null;
+  }
+
+  if (entry.expiresAt < Date.now()) {
+    cache.delete(key);
+    return null;
+  }
+
+  return entry.value;
+};
+
+const setCachedValue = <T>(cache: Map<string, CacheEntry<T>>, key: string, value: T): void => {
+  cache.set(key, {
+    value,
+    expiresAt: Date.now() + PROMPT_CACHE_TTL_SECONDS * 1000,
+  });
+};
 
 const trimMessageContent = (content: string): string => {
   if (content.length <= MAX_HISTORY_CHARS) {
@@ -267,6 +292,9 @@ const WalletInsightsChatOutputSchema = z.object({
   followUpSuggestions: z.array(FollowUpSuggestionSchema).optional().describe('Helpful follow-up questions or suggestions based on the response. Include 1-3 relevant suggestions that would be natural next steps for the user.'),
 });
 export type WalletInsightsChatOutput = z.infer<typeof WalletInsightsChatOutputSchema>;
+
+const generationCache = new Map<string, CacheEntry<WalletInsightsChatOutput>>();
+const fallbackGenerationCache = new Map<string, CacheEntry<WalletInsightsChatOutput>>();
 
 const SimplifiedChatOutputSchema = z.object({
   answer: z.string(),
@@ -2058,6 +2086,23 @@ ${input.question}
       let lastGenerationError: unknown = null;
       const runSimpleFallback = async (): Promise<WalletInsightsChatOutput | null> => {
         try {
+          const fallbackCacheKey = JSON.stringify({
+            type: 'fallback',
+            question: input.question,
+            walletData,
+            preferredCurrency: input.preferredCurrency || 'USD',
+            history,
+          });
+
+          const cachedFallback = getCachedValue(
+            fallbackGenerationCache,
+            fallbackCacheKey
+          );
+
+          if (cachedFallback) {
+            return cachedFallback;
+          }
+
           const { output } = await ai.generate({
             system:
               'You are BitSleuth. Provide a concise Markdown answer using the wallet data if helpful. Avoid charts and keep responses brief.',
@@ -2078,11 +2123,15 @@ Return only a JSON object with an "answer" string and optional "followUpSuggesti
           });
 
           if (output) {
-            return {
+            const fallbackResponse = {
               answer: output.answer,
               chart: null,
               followUpSuggestions: output.followUpSuggestions || [],
             };
+
+            setCachedValue(fallbackGenerationCache, fallbackCacheKey, fallbackResponse);
+
+            return fallbackResponse;
           }
         } catch (fallbackError) {
           console.warn('walletInsightsChatFlow: Simplified fallback generation failed.', extractErrorMessage(fallbackError));
@@ -2096,6 +2145,22 @@ Return only a JSON object with an "answer" string and optional "followUpSuggesti
           attempt === 1 ? userPrompt : `${userPrompt}\n\n${STRUCTURED_OUTPUT_REMINDER}`;
 
         try {
+          const generationCacheKey = JSON.stringify({
+            type: 'structured',
+            promptWithReminder,
+            systemPrompt,
+            history,
+            walletData,
+            preferredCurrency: input.preferredCurrency || 'USD',
+          });
+
+          const cachedResponse = getCachedValue(generationCache, generationCacheKey);
+
+          if (cachedResponse) {
+            generatedOutput = cachedResponse;
+            break;
+          }
+
           const { output } = await ai.generate({
             system: systemPrompt,
             prompt: promptWithReminder,
@@ -2118,6 +2183,7 @@ Return only a JSON object with an "answer" string and optional "followUpSuggesti
           });
 
           if (output) {
+            setCachedValue(generationCache, generationCacheKey, output);
             generatedOutput = output;
             break;
           }
