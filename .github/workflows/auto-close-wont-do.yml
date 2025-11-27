@@ -10,7 +10,7 @@ on:
       status:
         description: "Issue status to validate before closing"
         required: false
-        default: "Won't Do"
+        default: "Wont Do"
         type: string
 
 jobs:
@@ -39,8 +39,8 @@ jobs:
             // so this workflow must be manually triggered to close issues.
             const status = core.getInput("status");
 
-            if (status !== "Won't Do") {
-              console.log(`Issue #${issue_number} is not marked as "Won't Do" (status: ${status ?? "unknown"}). Skipping.`);
+            if (status !== "Wont Do") {
+              console.log(`Issue #${issue_number} is not marked as "Wont Do" (status: ${status ?? "unknown"}). Skipping.`);
               return;
             }
 
@@ -51,4 +51,4 @@ jobs:
               state: "closed"
             });
 
-            console.log(`Issue #${issue_number} closed because its status was set to "Won't Do".`);
+            console.log(`Issue #${issue_number} closed because its status was set to "Wont Do".`);
