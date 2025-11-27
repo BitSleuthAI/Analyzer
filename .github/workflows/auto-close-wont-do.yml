@@ -12,7 +12,7 @@ on:
         required: false
         default: "Wont Do"
         type: string
-  issues:
+  projects_v2_item:
     types: [edited]
 
 jobs:
