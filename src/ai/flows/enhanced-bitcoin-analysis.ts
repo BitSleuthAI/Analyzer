@@ -11,6 +11,8 @@ import {ai} from '@/ai/genkit';
 import {z} from 'zod';
 import type { WalletData, BitcoinTransactionAnalysis, BitcoinAddressAnalysis } from '@/lib/types';
 
+const PROMPT_CACHE_TTL_SECONDS = 60 * 60; // 1 hour TTL for reusable prompt scaffolding
+
 // Input schema for enhanced transaction analysis
 const EnhancedTransactionAnalysisInputSchema = z.object({
   transactionId: z.string().describe('The ID of the transaction to analyze.'),
@@ -59,6 +61,12 @@ export async function analyzeBitcoinTransaction(input: EnhancedTransactionAnalys
 
 const transactionAnalysisPrompt = ai.definePrompt({
   name: 'enhancedTransactionAnalysisPrompt',
+  config: {
+    cacheControl: {
+      type: 'ephemeral',
+      ttlSeconds: PROMPT_CACHE_TTL_SECONDS,
+    },
+  },
   input: {
     schema: z.object({
       transactionData: z.string(), // JSON string of the transaction
@@ -186,6 +194,12 @@ export async function analyzeBitcoinAddress(input: EnhancedAddressAnalysisInput)
 
 const addressAnalysisPrompt = ai.definePrompt({
   name: 'enhancedAddressAnalysisPrompt',
+  config: {
+    cacheControl: {
+      type: 'ephemeral',
+      ttlSeconds: PROMPT_CACHE_TTL_SECONDS,
+    },
+  },
   input: {
     schema: z.object({
       address: z.string(),

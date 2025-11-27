@@ -28,6 +28,7 @@ const MAX_TX_FOR_MODEL = 40;
 const MAX_UTXO_FOR_MODEL = 80;
 const MAX_ADDRESS_FOR_MODEL = 25;
 const WALLET_JSON_CHAR_BUDGET = 14000;
+const PROMPT_CACHE_TTL_SECONDS = 60 * 60; // 1 hour TTL for stable instruction blocks
 
 const trimMessageContent = (content: string): string => {
   if (content.length <= MAX_HISTORY_CHARS) {
@@ -2074,6 +2075,12 @@ Return only a JSON object with an "answer" string and optional "followUpSuggesti
             output: {
               schema: SimplifiedChatOutputSchema,
             },
+            config: {
+              cacheControl: {
+                type: 'ephemeral',
+                ttlSeconds: PROMPT_CACHE_TTL_SECONDS,
+              },
+            },
             tools: [],
           });
 
@@ -2102,6 +2109,12 @@ Return only a JSON object with an "answer" string and optional "followUpSuggesti
             messages: history,
             output: {
               schema: WalletInsightsChatOutputSchema,
+            },
+            config: {
+              cacheControl: {
+                type: 'ephemeral',
+                ttlSeconds: PROMPT_CACHE_TTL_SECONDS,
+              },
             },
             tools: [
               securityRecommendationsTool,
