@@ -43,10 +43,11 @@ jobs:
             
             try {
               // Query the issue's project status using GraphQL
+              // Note: Must query through repository.issue() not node() for projectItems to work
               const query = `
-                query($issueId: ID!) {
-                  node(id: $issueId) {
-                    ... on Issue {
+                query($owner: String!, $repo: String!, $issueNumber: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    issue(number: $issueNumber) {
                       projectItems(first: 10) {
                         edges {
                           node {
@@ -75,13 +76,15 @@ jobs:
               `;
               
               const result = await github.graphql(query, {
-                issueId: issueNodeId
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issueNumber: issueNumber
               });
               
               console.log('GraphQL result:', JSON.stringify(result, null, 2));
               
               // Check if issue has project items
-              const projectItems = result.node?.projectItems?.edges || [];
+              const projectItems = result.repository?.issue?.projectItems?.edges || [];
               
               if (projectItems.length === 0) {
                 console.log(`Issue #${issueNumber} is not in any project. Skipping.`);
