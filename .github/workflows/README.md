@@ -6,7 +6,7 @@ The `auto-close-wont-do.yml` workflow automatically closes issues when their sta
 
 ### Triggers
 
-- **`schedule`** - Automatic trigger every 30 minutes:
+- **`schedule`** - Automatic trigger At 00:00 on every 10th day-of-month:
   - Checks all open issues in the repository
   - Closes any issues with "Won't Do" status
   - Runs continuously without manual intervention
@@ -19,7 +19,7 @@ The `auto-close-wont-do.yml` workflow automatically closes issues when their sta
 
 ### How It Works
 
-1. **Scheduled Run (Every 30 minutes):**
+1. **Scheduled Run (At 00:00 on every 10th day-of-month):**
    - Automatically checks all open issues in the repository
    - Queries each issue's status in GitHub Projects v2
    - Closes any issues with "Won't Do" status
@@ -41,19 +41,41 @@ The `auto-close-wont-do.yml` workflow automatically closes issues when their sta
 ⚠️ **Projects V2 Events Not Supported**: The `projects_v2_item` event is NOT supported as a workflow trigger by GitHub Actions. While this event exists as a webhook, it cannot be used in the `on:` section of workflow files.
 
 **Solution Implemented:**
-- Uses a **scheduled trigger (every 30 minutes)** to automatically check all open issues
-- This ensures issues are closed within 30 minutes of status change to "Won't Do"
+- Uses a **scheduled trigger (At 00:00 on every 10th day-of-month)** to automatically check all open issues
+- This ensures issues are closed within 00:00 on every 10th day-of-month of status change to "Won't Do"
 - No manual intervention required after setting status to "Won't Do"
 
 **Permissions:**
 - `issues: write` - Required to close issues and add comments
 - `repository-projects: read` - Required to read GitHub Projects v2 data via GraphQL API
+- `contents: read` - Standard permission for workflow operations
+
+⚠️ **Organization-level Projects V2 Access:**
+
+The default `GITHUB_TOKEN` **cannot** read organization-level Projects V2 items. If your issues are in an organization project (not a repository project), the workflow will report "Issue #X is not in any project" even though it is.
+
+**Solutions:**
+
+1. **For Repository-level Projects:**
+   - No additional setup needed
+   - The default `GITHUB_TOKEN` works automatically
+   - This is the recommended approach for public repositories
+
+2. **For Organization-level Projects:**
+   - Create a fine-grained PAT with `read:org` and `read:project` scopes
+   - Go to **Settings > Developer settings > Personal access tokens > Fine-grained tokens**
+   - Create a token with:
+     - `read:org` permission (to read organization data)
+     - `read:project` permission (to read Projects V2 data)
+   - Add it as a repository secret named `PROJECT_TOKEN`
+   - **The workflow automatically uses PROJECT_TOKEN when available**
+   - Works for both scheduled and manual triggers
 
 ### Usage
 
 #### Automatic Closure (Recommended)
 1. Set an issue's status to "Won't Do" in your GitHub Projects v2 board
-2. Wait up to 30 minutes for the scheduled workflow to run
+2. Wait up to 10th day-of-month for the scheduled workflow to run
 3. The workflow will automatically detect and close the issue
 
 #### Manual Trigger (Immediate Closure)
@@ -69,7 +91,7 @@ For immediate closure without waiting for the scheduled run:
 
 To test the workflow:
 1. Set an issue's status to "Won't Do" in the project board
-2. Option A: Wait up to 30 minutes for automatic closure
+2. Option A: Wait up to 00:00 on every 10th day-of-month for automatic closure
 3. Option B: Manually trigger the workflow with the issue number for immediate testing
 
 ### Troubleshooting
@@ -80,10 +102,34 @@ To test the workflow:
 - Ensure the workflow has proper permissions (issues: write, repository-projects: read)
 - Review workflow logs in the Actions tab for errors
 
+**"Issue #X is not in any project. Skipping." error:**
+
+This error appears when the workflow cannot access the project data. Common causes:
+
+1. **Organization-level project (Most Common):**
+   - Your issues are in an **organization project**, not a repository project
+   - The default `GITHUB_TOKEN` lacks permissions to read organization projects
+   - **Solution:** Either:
+     - Move issues to a repository-level project, OR
+     - Set up a PAT with `read:org` and `read:project` scopes (see instructions above)
+
+2. **Issue not actually in a project:**
+   - Check that the issue is actually added to a Projects V2 board
+   - Classic Projects (V1) are not supported
+
+3. **Permission issue:**
+   - Verify `repository-projects: read` permission is in the workflow
+   - Check workflow run logs for GraphQL errors
+
+**How to tell if you have org-level vs repo-level projects:**
+- Repository projects: URL like `https://github.com/owner/repo/projects/1`
+- Organization projects: URL like `https://github.com/orgs/org-name/projects/1`
+
 **GraphQL returns empty projectItems:**
-- This usually indicates a permissions issue
-- The workflow now includes `repository-projects: read` permission
-- If still empty, the issue may not be in any project board
+- This usually indicates an organization-level project
+- The workflow now logs detailed debug information
+- Check the workflow logs for the `totalCount` value
+- If `totalCount > 0` but no items returned, it's an org project permission issue
 
 ## Copilot Agent Testing Workflow
 
