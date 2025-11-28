@@ -54,19 +54,22 @@ The `auto-close-wont-do.yml` workflow automatically closes issues when their sta
 
 The default `GITHUB_TOKEN` **cannot** read organization-level Projects V2 items. If your issues are in an organization project (not a repository project), the workflow will report "Issue #X is not in any project" even though it is.
 
-**Two Solutions:**
+**Solutions:**
 
-1. **Use Repository-level Projects (Recommended for public repos):**
-   - Create projects at the repository level instead of organization level
-   - The default `GITHUB_TOKEN` can access repository projects
-   - No additional configuration required
+1. **For Repository-level Projects:**
+   - No additional setup needed
+   - The default `GITHUB_TOKEN` works automatically
+   - This is the recommended approach for public repositories
 
-2. **Use a Personal Access Token (PAT) for Organization Projects:**
+2. **For Organization-level Projects:**
+   - Create a fine-grained PAT with `read:org` and `read:project` scopes
    - Go to **Settings > Developer settings > Personal access tokens > Fine-grained tokens**
-   - Create a token with `read:org` and `read:project` scopes
+   - Create a token with:
+     - `read:org` permission (to read organization data)
+     - `read:project` permission (to read Projects V2 data)
    - Add it as a repository secret named `PROJECT_TOKEN`
-   - When manually triggering the workflow, set `use_custom_token` to `true`
-   - Note: This only works for manual triggers, not scheduled runs
+   - **The workflow automatically uses PROJECT_TOKEN when available**
+   - Works for both scheduled and manual triggers
 
 ### Usage
 
