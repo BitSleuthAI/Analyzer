@@ -6,7 +6,7 @@ The `auto-close-wont-do.yml` workflow automatically closes issues when their sta
 
 ### Triggers
 
-- **`schedule`** - Automatic trigger every 30 minutes:
+- **`schedule`** - Automatic trigger At 00:00 on every 10th day-of-month:
   - Checks all open issues in the repository
   - Closes any issues with "Won't Do" status
   - Runs continuously without manual intervention
@@ -19,7 +19,7 @@ The `auto-close-wont-do.yml` workflow automatically closes issues when their sta
 
 ### How It Works
 
-1. **Scheduled Run (Every 30 minutes):**
+1. **Scheduled Run (At 00:00 on every 10th day-of-month):**
    - Automatically checks all open issues in the repository
    - Queries each issue's status in GitHub Projects v2
    - Closes any issues with "Won't Do" status
@@ -41,8 +41,8 @@ The `auto-close-wont-do.yml` workflow automatically closes issues when their sta
 ⚠️ **Projects V2 Events Not Supported**: The `projects_v2_item` event is NOT supported as a workflow trigger by GitHub Actions. While this event exists as a webhook, it cannot be used in the `on:` section of workflow files.
 
 **Solution Implemented:**
-- Uses a **scheduled trigger (every 30 minutes)** to automatically check all open issues
-- This ensures issues are closed within 30 minutes of status change to "Won't Do"
+- Uses a **scheduled trigger (At 00:00 on every 10th day-of-month)** to automatically check all open issues
+- This ensures issues are closed within 00:00 on every 10th day-of-month of status change to "Won't Do"
 - No manual intervention required after setting status to "Won't Do"
 
 **Permissions:**
@@ -53,7 +53,7 @@ The `auto-close-wont-do.yml` workflow automatically closes issues when their sta
 
 #### Automatic Closure (Recommended)
 1. Set an issue's status to "Won't Do" in your GitHub Projects v2 board
-2. Wait up to 30 minutes for the scheduled workflow to run
+2. Wait up to 10th day-of-month for the scheduled workflow to run
 3. The workflow will automatically detect and close the issue
 
 #### Manual Trigger (Immediate Closure)
@@ -69,7 +69,7 @@ For immediate closure without waiting for the scheduled run:
 
 To test the workflow:
 1. Set an issue's status to "Won't Do" in the project board
-2. Option A: Wait up to 30 minutes for automatic closure
+2. Option A: Wait up to 00:00 on every 10th day-of-month for automatic closure
 3. Option B: Manually trigger the workflow with the issue number for immediate testing
 
 ### Troubleshooting
