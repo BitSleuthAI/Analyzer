@@ -5,8 +5,16 @@
 
 import { getWalletData } from '../src/lib/blockchain';
 
-// Test XPUB - this should be set from environment variable
-const TEST_XPUB = process.env.TEST_XPUB || 'xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWKiKrhko4egpiMZbpiaQL2jkwSB1icqYh2cfDfVxdx4df189oLKnC5fSwqPfgyP3hooxujYzAu3fDVmz';
+// Test XPUB - MUST be set from environment variable or GitHub secrets
+// DO NOT hardcode real XPUBs in the codebase as they reveal wallet structure
+const TEST_XPUB = process.env.TEST_XPUB;
+
+if (!TEST_XPUB) {
+    console.error('❌ Error: TEST_XPUB environment variable is required');
+    console.error('Usage: TEST_XPUB="xpub..." npx tsx tests/test-xpub-performance.ts');
+    console.error('Or set TEST_XPUB in GitHub secrets for CI/CD testing');
+    process.exit(1);
+}
 
 async function testXpubPerformance() {
     console.log('🚀 Starting XPUB Performance Test');

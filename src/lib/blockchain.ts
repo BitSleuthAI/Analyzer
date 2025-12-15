@@ -10,7 +10,6 @@ import { format, startOfDay } from 'date-fns';
 const GAP_LIMIT = 20; // Standard gap limit for address discovery
 const INITIAL_CHECK_LIMIT = 5; // How many addresses to check initially to determine wallet type
 const PARALLEL_BATCH_SIZE = 10; // How many addresses to check in parallel
-const TYPE_DETECTION_CONCURRENCY = 3; // Check all types concurrently
 
 function getP2wpkhAddress(pubKey: Buffer): string {
     return bitcoin.payments.p2wpkh({ pubkey: pubKey }).address!;

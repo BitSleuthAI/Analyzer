@@ -15,7 +15,8 @@ describe('Address Discovery Optimization', () => {
         
         // Verify the optimization constants are present
         expect(content).toContain('PARALLEL_BATCH_SIZE');
-        expect(content).toContain('TYPE_DETECTION_CONCURRENCY');
+        expect(content).toContain('GAP_LIMIT');
+        expect(content).toContain('INITIAL_CHECK_LIMIT');
         
         // Verify Promise.allSettled is used for parallel processing
         expect(content).toContain('Promise.allSettled');
