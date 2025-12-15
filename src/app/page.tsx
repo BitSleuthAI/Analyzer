@@ -294,65 +294,7 @@ export default function ConnectWalletPage() {
         </div>
 
 
-        {/* SEO-friendly features section */}
-        <div className="w-full max-w-4xl space-y-6 sm:space-y-8 text-center mt-8 sm:mt-12">
-          <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">Why BitSleuth?</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
 
-            <div className="group relative overflow-hidden rounded-xl border bg-card p-6 text-left shadow-sm transition-all duration-200 hover:shadow-md hover:border-primary/50">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="relative z-10 flex flex-col gap-3">
-                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform duration-200">
-                  <ShieldCheck className="h-6 w-6" />
-                </div>
-                <h3 className="font-semibold text-foreground">Security Analysis</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  AI-powered assessment of your wallet's privacy and security practices.
-                </p>
-              </div>
-            </div>
-
-            <div className="group relative overflow-hidden rounded-xl border bg-card p-6 text-left shadow-sm transition-all duration-200 hover:shadow-md hover:border-primary/50">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="relative z-10 flex flex-col gap-3">
-                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform duration-200">
-                  <Activity className="h-6 w-6" />
-                </div>
-                <h3 className="font-semibold text-foreground">Transaction Patterns</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Visualize inflow, outflow, and activity trends over time.
-                </p>
-              </div>
-            </div>
-
-            <div className="group relative overflow-hidden rounded-xl border bg-card p-6 text-left shadow-sm transition-all duration-200 hover:shadow-md hover:border-primary/50">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="relative z-10 flex flex-col gap-3">
-                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform duration-200">
-                  <BarChart3 className="h-6 w-6" />
-                </div>
-                <h3 className="font-semibold text-foreground">Market Data</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Real-time Bitcoin price, fees, and mempool status updates.
-                </p>
-              </div>
-            </div>
-
-            <div className="group relative overflow-hidden rounded-xl border bg-card p-6 text-left shadow-sm transition-all duration-200 hover:shadow-md hover:border-primary/50">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="relative z-10 flex flex-col gap-3">
-                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform duration-200">
-                  <Search className="h-6 w-6" />
-                </div>
-                <h3 className="font-semibold text-foreground">Deep Search</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Explore any address or transaction with our block explorer.
-                </p>
-              </div>
-            </div>
-
-          </div>
-        </div>
 
         <p className="px-8 text-center text-xs text-muted-foreground font-normal italic">
           By analyzing an xpub, you agree to our{" "}
@@ -365,6 +307,66 @@ export default function ConnectWalletPage() {
           </Link>
           . Only public blockchain data is analyzed - your private keys are never accessed.
         </p>
+      </div>
+
+      {/* SEO-friendly features section - Moved Out of Card */}
+      <div className="w-full max-w-6xl space-y-8 text-center mt-12 sm:mt-16 px-4">
+        <h2 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">Why BitSleuth?</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+
+          <div className="group relative overflow-hidden rounded-xl border bg-card p-6 text-left shadow-sm transition-all duration-200 hover:shadow-md hover:border-primary/50">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="relative z-10 flex flex-col gap-3">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform duration-200">
+                <ShieldCheck className="h-6 w-6" />
+              </div>
+              <h3 className="font-semibold text-foreground">Security Analysis</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                AI-powered assessment of your wallet's privacy and security practices.
+              </p>
+            </div>
+          </div>
+
+          <div className="group relative overflow-hidden rounded-xl border bg-card p-6 text-left shadow-sm transition-all duration-200 hover:shadow-md hover:border-primary/50">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="relative z-10 flex flex-col gap-3">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform duration-200">
+                <Activity className="h-6 w-6" />
+              </div>
+              <h3 className="font-semibold text-foreground">Transaction Patterns</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Visualize inflow, outflow, and activity trends over time.
+              </p>
+            </div>
+          </div>
+
+          <div className="group relative overflow-hidden rounded-xl border bg-card p-6 text-left shadow-sm transition-all duration-200 hover:shadow-md hover:border-primary/50">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="relative z-10 flex flex-col gap-3">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform duration-200">
+                <BarChart3 className="h-6 w-6" />
+              </div>
+              <h3 className="font-semibold text-foreground">Market Data</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Real-time Bitcoin price, fees, and mempool status updates.
+              </p>
+            </div>
+          </div>
+
+          <div className="group relative overflow-hidden rounded-xl border bg-card p-6 text-left shadow-sm transition-all duration-200 hover:shadow-md hover:border-primary/50">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="relative z-10 flex flex-col gap-3">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform duration-200">
+                <Search className="h-6 w-6" />
+              </div>
+              <h3 className="font-semibold text-foreground">Deep Search</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Explore any address or transaction with our block explorer.
+              </p>
+            </div>
+          </div>
+
+        </div>
       </div>
     </main>
   );
