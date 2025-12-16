@@ -3,7 +3,7 @@
  * Tests in-flight deduplication, cache TTL, and snapshot management
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
     getCachedSnapshot,
     setCachedSnapshot,
@@ -234,10 +234,6 @@ describe('Wallet Snapshot Cache', () => {
             setCachedSnapshot(snapshot);
 
             let fetchCalled = false;
-            const mockFetch = async () => {
-                fetchCalled = true;
-                return createMockSnapshot();
-            };
 
             // Cached snapshot should be used, fetch should not be called
             const result = getCachedSnapshot(mockXpub);
