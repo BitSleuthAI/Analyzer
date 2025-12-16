@@ -66,8 +66,11 @@ describe('Address Discovery Optimization', () => {
         expect(content).toContain('fast path');
         expect(content).toContain('inferenceResult.primaryType');
         
-        // Verify early exit when addresses found
-        expect(content).toContain('return discoveredAddresses');
+        // Verify early exit when addresses found with descriptive variable names
+        expect(content).toContain('primaryDiscoveredAddresses');
+        expect(content).toContain('fallbackDiscoveredAddresses');
+        expect(content).toContain('unknownPrefixDiscoveredAddresses');
+        expect(content).toContain('return primaryDiscoveredAddresses');
         
         // Verify conditional fallback only for ambiguous types
         expect(content).toContain('inferenceResult.shouldCheckOthers');

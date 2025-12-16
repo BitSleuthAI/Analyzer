@@ -221,12 +221,12 @@ async function discoverUsedAddresses(xpub: string): Promise<string[]> {
         
         // First, try just the primary inferred type
         activeTypes = [inferenceResult.primaryType];
-        let discoveredAddresses = await performDiscoveryForTypes(node, activeTypes, discoveryStartTime);
+        const primaryDiscoveredAddresses = await performDiscoveryForTypes(node, activeTypes, discoveryStartTime);
         
         // If we found addresses, we're done! (Fast path - single type scan)
-        if (discoveredAddresses.length > 0) {
-            console.log(`[Discovery] Found ${discoveredAddresses.length} addresses using inferred type ${inferenceResult.primaryType} (fast path)`);
-            return discoveredAddresses;
+        if (primaryDiscoveredAddresses.length > 0) {
+            console.log(`[Discovery] Found ${primaryDiscoveredAddresses.length} addresses using inferred type ${inferenceResult.primaryType} (fast path)`);
+            return primaryDiscoveredAddresses;
         }
         
         // If no addresses found AND this prefix might use other types (e.g., xpub can use all types)
@@ -240,8 +240,8 @@ async function discoverUsedAddresses(xpub: string): Promise<string[]> {
                 activeTypes = typeDetection.activeTypes;
                 typeDetectionTime = typeDetection.detectionTime;
                 console.log(`[Discovery] Detected additional active types: ${activeTypes.join(', ')} in ${typeDetectionTime}ms`);
-                discoveredAddresses = await performDiscoveryForTypes(node, activeTypes, discoveryStartTime);
-                return discoveredAddresses;
+                const fallbackDiscoveredAddresses = await performDiscoveryForTypes(node, activeTypes, discoveryStartTime);
+                return fallbackDiscoveredAddresses;
             }
         }
         
@@ -261,8 +261,8 @@ async function discoverUsedAddresses(xpub: string): Promise<string[]> {
             activeTypes = ['native']; // Default fallback
         }
         
-        const discoveredAddresses = await performDiscoveryForTypes(node, activeTypes, discoveryStartTime);
-        return discoveredAddresses;
+        const unknownPrefixDiscoveredAddresses = await performDiscoveryForTypes(node, activeTypes, discoveryStartTime);
+        return unknownPrefixDiscoveredAddresses;
     }
 }
 
