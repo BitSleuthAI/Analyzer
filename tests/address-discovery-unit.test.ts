@@ -43,12 +43,19 @@ describe('Address Discovery Optimization', () => {
         // Verify improved inference returns structured result
         expect(content).toContain('primaryType');
         expect(content).toContain('shouldCheckOthers');
+        expect(content).toContain('otherTypes');
         
         // Verify zpub/ypub skip fallback (specific types)
         expect(content).toContain('shouldCheckOthers: false');
         
         // Verify xpub allows fallback (ambiguous type)
         expect(content).toContain('shouldCheckOthers: true');
+        
+        // Verify precomputed type arrays for performance
+        expect(content).toContain('ALL_ADDRESS_TYPES');
+        expect(content).toContain('TYPES_WITHOUT_NATIVE');
+        expect(content).toContain('TYPES_WITHOUT_NESTED');
+        expect(content).toContain('TYPES_WITHOUT_LEGACY');
     });
     
     it('Optimized discovery with fast path and conditional fallback', () => {
@@ -77,6 +84,15 @@ describe('Address Discovery Optimization', () => {
         // Verify the constant is reduced from 5 to 3
         expect(content).toContain('INITIAL_CHECK_LIMIT = 3');
         expect(content).toContain('Reduced from 5 to 3');
+    });
+    
+    it('Uses constants for maintainability (XPUB_LOG_PREFIX_LENGTH)', () => {
+        const blockchainPath = path.join(__dirname, '../src/lib/blockchain.ts');
+        const content = fs.readFileSync(blockchainPath, 'utf-8');
+        
+        // Verify XPUB_LOG_PREFIX_LENGTH constant is defined
+        expect(content).toContain('XPUB_LOG_PREFIX_LENGTH');
+        expect(content).toContain('substring(0, XPUB_LOG_PREFIX_LENGTH)');
     });
     
     it('Parallel type detection is implemented', () => {

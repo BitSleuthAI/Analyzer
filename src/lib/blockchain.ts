@@ -21,6 +21,7 @@ const GAP_LIMIT = 20; // Standard gap limit for address discovery
 const INITIAL_CHECK_LIMIT = 3; // Reduced from 5 to 3 for faster type detection (40% less API calls during detection)
 const PARALLEL_BATCH_SIZE = 10; // How many addresses to check in parallel
 const ADDRESS_DISCOVERY_CACHE_TTL_MS = 10 * 60 * 1000; // Cache discovered addresses for 10 minutes
+const XPUB_LOG_PREFIX_LENGTH = 20; // How many characters of XPUB to show in logs (for privacy and readability)
 
 const addressDiscoveryCache = new Map<string, { addresses: string[]; timestamp: number }>();
 const addressDiscoveryPromises = new Map<string, Promise<string[]>>();
@@ -57,15 +58,21 @@ function deriveAddressBatch(node: any, chain: number, from: number, to: number, 
     return addresses;
 }
 
-function inferAddressTypesFromXpub(xpub: string): { primaryType: AddressType; shouldCheckOthers: boolean } | null {
+// Precomputed type arrays for fallback - avoids repeated array operations
+const ALL_ADDRESS_TYPES: AddressType[] = ['native', 'nested', 'legacy'];
+const TYPES_WITHOUT_NATIVE: AddressType[] = ['nested', 'legacy'];
+const TYPES_WITHOUT_NESTED: AddressType[] = ['native', 'legacy'];
+const TYPES_WITHOUT_LEGACY: AddressType[] = ['native', 'nested'];
+
+function inferAddressTypesFromXpub(xpub: string): { primaryType: AddressType; shouldCheckOthers: boolean; otherTypes: AddressType[] } | null {
     const prefix = xpub.slice(0, 4).toLowerCase();
     // ypub/upub: BIP49 (P2SH-P2WPKH nested SegWit) - typically only uses nested type
-    if (prefix === 'ypub' || prefix === 'upub') return { primaryType: 'nested', shouldCheckOthers: false };
+    if (prefix === 'ypub' || prefix === 'upub') return { primaryType: 'nested', shouldCheckOthers: false, otherTypes: TYPES_WITHOUT_NESTED };
     // zpub/vpub: BIP84 (P2WPKH native SegWit) - typically only uses native type
-    if (prefix === 'zpub' || prefix === 'vpub') return { primaryType: 'native', shouldCheckOthers: false };
+    if (prefix === 'zpub' || prefix === 'vpub') return { primaryType: 'native', shouldCheckOthers: false, otherTypes: TYPES_WITHOUT_NATIVE };
     // xpub/tpub: BIP44 (P2PKH legacy) - might use legacy primarily, but could have others
     // Some wallets derive multiple types from same xpub, so check others if primary is empty
-    if (prefix === 'xpub' || prefix === 'tpub') return { primaryType: 'legacy', shouldCheckOthers: true };
+    if (prefix === 'xpub' || prefix === 'tpub') return { primaryType: 'legacy', shouldCheckOthers: true, otherTypes: TYPES_WITHOUT_LEGACY };
     return null;
 }
 
@@ -205,7 +212,6 @@ async function discoverUsedAddresses(xpub: string): Promise<string[]> {
         throw new Error('Upstream data provider is temporarily unavailable. Please try again in a moment.');
     }
 
-    const defaultTypes: AddressType[] = ['native', 'nested', 'legacy'];
     let activeTypes: AddressType[] = [];
     let typeDetectionTime = 0;
 
@@ -227,8 +233,8 @@ async function discoverUsedAddresses(xpub: string): Promise<string[]> {
         // then check other types, but only if the XPUB type is ambiguous
         if (inferenceResult.shouldCheckOthers) {
             console.log(`[Discovery] No addresses found for ${inferenceResult.primaryType}, checking other types for xpub...`);
-            const otherTypes = defaultTypes.filter(t => t !== inferenceResult.primaryType);
-            const typeDetection = await detectActiveTypes(node, otherTypes);
+            // Use precomputed otherTypes array to avoid repeated filter operations
+            const typeDetection = await detectActiveTypes(node, inferenceResult.otherTypes);
             
             if (typeDetection.activeTypes.length > 0) {
                 activeTypes = typeDetection.activeTypes;
@@ -240,13 +246,13 @@ async function discoverUsedAddresses(xpub: string): Promise<string[]> {
         }
         
         // If we still found nothing, return empty (this is likely an unused wallet)
-        console.log(`[Discovery] No addresses found for ${xpub.substring(0, 20)}... (empty wallet)`);
+        console.log(`[Discovery] No addresses found for ${xpub.substring(0, XPUB_LOG_PREFIX_LENGTH)}... (empty wallet)`);
         return [];
         
     } else {
         // Unknown XPUB prefix - check all types (rare case for non-standard XPUBs)
         console.log(`[Discovery] Unknown XPUB prefix, checking all address types...`);
-        const typeDetection = await detectActiveTypes(node, defaultTypes);
+        const typeDetection = await detectActiveTypes(node, ALL_ADDRESS_TYPES);
         activeTypes = typeDetection.activeTypes;
         typeDetectionTime = typeDetection.detectionTime;
         console.log(`[Discovery] Detected active wallet types: ${activeTypes.join(', ')} in ${typeDetectionTime}ms`);
