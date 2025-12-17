@@ -51,6 +51,8 @@ export default function ConnectWalletPage() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadingStage, setLoadingStage] = useState<string>('');
+  const [elapsedTime, setElapsedTime] = useState(0);
 
   const { addXpub, activeXpub, isLoading: isWalletLoading, loginWithNostr } = useWallet();
 
@@ -84,20 +86,47 @@ export default function ConnectWalletPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
     setError(null);
+    setElapsedTime(0);
+    setLoadingStage('Validating XPUB format...');
 
-    // Show progress toast to indicate long-running operation
-    const progressToast = toast({
-      title: "Analyzing wallet...",
-      description: "This may take 30-60 seconds for wallets with transaction history.",
-      duration: 60000, // Show for up to 60 seconds
-    });
+    // Start timer for elapsed time tracking
+    const startTime = Date.now();
+    const timerInterval = setInterval(() => {
+      setElapsedTime(Math.floor((Date.now() - startTime) / 1000));
+    }, 1000);
 
     try {
+      // Update stage after initial validation
+      setTimeout(() => {
+        if (isSubmitting) {
+          setLoadingStage('Discovering wallet addresses...');
+        }
+      }, 2000);
+
+      setTimeout(() => {
+        if (isSubmitting) {
+          setLoadingStage('Fetching transaction history...');
+        }
+      }, 15000);
+
+      setTimeout(() => {
+        if (isSubmitting) {
+          setLoadingStage('Processing transactions and UTXOs...');
+        }
+      }, 35000);
+
+      setTimeout(() => {
+        if (isSubmitting) {
+          setLoadingStage('Finalizing wallet analysis...');
+        }
+      }, 60000);
+
       const result = await addXpub(values.xpub);
 
       if (result.error) {
         setError(result.error);
       } else {
+        setLoadingStage('Connection successful!');
         toast({
           title: "Connection Successful",
           description: "Redirecting to your dashboard.",
@@ -109,16 +138,9 @@ export default function ConnectWalletPage() {
       // Handle any unexpected errors that might occur
       setError(error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.');
     } finally {
-      // Dismiss the progress toast and reset submitting state
-      try {
-        if (progressToast?.dismiss) {
-          progressToast.dismiss();
-        }
-      } catch (e) {
-        // Silently handle if toast dismissal fails
-        console.warn('Failed to dismiss toast:', e);
-      }
+      clearInterval(timerInterval);
       setIsSubmitting(false);
+      setLoadingStage('');
     }
   }
 
@@ -257,7 +279,7 @@ export default function ConnectWalletPage() {
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Validating wallet...
+                    Connecting...
                   </>
                 ) : (
                   <>
@@ -267,6 +289,71 @@ export default function ConnectWalletPage() {
                   </>
                 )}
               </Button>
+              
+              {/* Progress Dialog */}
+              <Dialog open={isSubmitting} onOpenChange={(open) => !open && setIsSubmitting(false)}>
+                <DialogContent 
+                  className="sm:max-w-md" 
+                  hideCloseButton
+                  onPointerDownOutside={(e) => e.preventDefault()}
+                  onEscapeKeyDown={(e) => e.preventDefault()}
+                >
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                      Connecting Your Wallet
+                    </DialogTitle>
+                    <DialogDescription className="font-normal">
+                      Please wait while we analyze your Bitcoin wallet...
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">{loadingStage}</span>
+                        <span className="text-muted-foreground">{elapsedTime}s / ~120s</span>
+                      </div>
+                      <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
+                        <div 
+                          className="bg-primary h-full transition-all duration-1000 ease-out"
+                          style={{ 
+                            width: `${Math.min(
+                              (elapsedTime / 120) * 100,
+                              95
+                            )}%` 
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div className="rounded-lg bg-muted p-3 text-xs space-y-1 text-muted-foreground">
+                      <p className="flex items-center gap-2">
+                        <ShieldCheck className="h-3 w-3 text-primary" />
+                        Discovering wallet addresses (typically 30-120s)
+                      </p>
+                      <p className="flex items-center gap-2">
+                        <Activity className="h-3 w-3 text-primary" />
+                        Fetching transaction history from blockchain
+                      </p>
+                      <p className="flex items-center gap-2">
+                        <BarChart3 className="h-3 w-3 text-primary" />
+                        Calculating security and performance metrics
+                      </p>
+                    </div>
+                    {elapsedTime > 60 && elapsedTime <= 110 && (
+                      <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-900 dark:text-amber-100">
+                        <p className="font-semibold mb-1">Still processing...</p>
+                        <p>This wallet may have many addresses. Discovery can take up to 2 minutes. Please wait.</p>
+                      </div>
+                    )}
+                    {elapsedTime > 110 && (
+                      <div className="rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 p-3 text-xs text-red-900 dark:text-red-100">
+                        <p className="font-semibold mb-1">This is taking unusually long...</p>
+                        <p>The blockchain API may be experiencing issues. The operation will timeout at 120 seconds if it doesn't complete.</p>
+                      </div>
+                    )}
+                  </div>
+                </DialogContent>
+              </Dialog>
             </form>
           </Form>
 
