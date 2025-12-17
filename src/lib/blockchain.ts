@@ -202,7 +202,15 @@ async function performDiscoveryForTypes(node: any, activeTypes: AddressType[], d
  */
 async function discoverUsedAddresses(xpub: string): Promise<string[]> {
     const discoveryStartTime = Date.now();
-    const node = bip32.fromBase58(xpub, bitcoin.networks.bitcoin);
+    
+    // Validate XPUB format early to catch invalid inputs
+    let node;
+    try {
+        node = bip32.fromBase58(xpub, bitcoin.networks.bitcoin);
+    } catch (e) {
+        throw new Error('Invalid XPUB format. Please check that you entered the correct extended public key.');
+    }
+    
     const inferenceResult = inferAddressTypesFromXpub(xpub);
 
     // Quick provider readiness check (with fallback & retry under the hood)
@@ -279,13 +287,28 @@ async function getCachedUsedAddresses(xpub: string): Promise<string[]> {
         return inFlight;
     }
 
-    const discoveryPromise = discoverUsedAddresses(xpub)
+    // Wrap discovery with a 2-minute timeout to prevent indefinite hangs
+    const DISCOVERY_TIMEOUT_MS = 120000; // 2 minutes
+    
+    let timeoutId: NodeJS.Timeout | undefined;
+    const discoveryPromise = Promise.race([
+        discoverUsedAddresses(xpub),
+        new Promise<string[]>((_, reject) => {
+            timeoutId = setTimeout(() => reject(new Error('Address discovery timed out after 2 minutes. The wallet may have many addresses or the network is slow. Please try again.')), DISCOVERY_TIMEOUT_MS);
+        })
+    ])
         .then(addresses => {
+            if (timeoutId !== undefined) {
+                clearTimeout(timeoutId); // Clean up timeout to prevent memory leak
+            }
             addressDiscoveryCache.set(xpub, { addresses, timestamp: Date.now() });
             addressDiscoveryPromises.delete(xpub);
             return addresses;
         })
         .catch(error => {
+            if (timeoutId !== undefined) {
+                clearTimeout(timeoutId); // Clean up timeout to prevent memory leak
+            }
             addressDiscoveryPromises.delete(xpub);
             throw error;
         });
@@ -501,7 +524,7 @@ export async function getWalletData(xpub: string, currency: Currency = 'USD'): P
             snapshot = await withInFlightDeduplication(xpub, () => fetchWalletSnapshot(xpub, currency));
             
             if (!snapshot) {
-                return { data: null, error: 'This xpub key has no transaction history and cannot be analyzed. Address discovery failed.' };
+                return { data: null, error: 'This wallet has no transaction history yet. BitSleuth can only analyze wallets that have been used to send or receive Bitcoin.' };
             }
             
             // Cache the snapshot for 5 minutes
