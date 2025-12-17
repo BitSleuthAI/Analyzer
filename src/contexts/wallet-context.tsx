@@ -535,10 +535,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       const cached = localStorage.getItem(`walletCache:${newXpub}`);
       if (cached) {
         cachedData = JSON.parse(cached);
-        console.log(`[WalletContext] Found cached data for ${newXpub.substring(0, 20)}..., showing immediately`);
+        console.log(`[WalletContext] Found cached data for wallet, showing immediately`);
       }
     } catch (e) {
       console.warn(`[WalletContext] Failed to load cached data during addXpub:`, e);
+      logger.warn('[WalletContext] Cache read error in addXpub', e);
     }
 
     // If we have cached data, show it NOW and add the XPUB immediately
@@ -562,7 +563,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           setData(validationResult.data);
           try {
             localStorage.setItem(`walletCache:${newXpub}`, JSON.stringify(validationResult.data));
-          } catch {}
+          } catch (storageError) {
+            logger.warn('[WalletContext] Failed to update cache after background validation', storageError);
+          }
         }
       }).catch(e => {
         console.warn(`[WalletContext] Background validation error:`, e);
@@ -668,13 +671,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         const parsed = JSON.parse(cached);
         setData(parsed);
         hasCachedData = true;
-        console.log(`[WalletContext] Showing cached data for ${activeXpub.substring(0, 20)}... (instant load)`);
+        console.log(`[WalletContext] Showing cached wallet data (instant load)`);
         // If we have cached data, show it immediately and mark as not loading
         // We'll still fetch fresh data in the background
         setIsLoading(false);
       }
     } catch (e) {
       console.warn(`[WalletContext] Failed to load cached data:`, e);
+      logger.warn('[WalletContext] Cache read error in getWalletData', e);
     }
     
     // If no cached data, show loading state
@@ -694,7 +698,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       setData(response.data);
       try {
         localStorage.setItem(`walletCache:${activeXpub}`, JSON.stringify(response.data));
-      } catch {}
+      } catch (storageError) {
+        logger.warn('[WalletContext] Failed to cache fresh wallet data', storageError);
+      }
     }
     
     setIsLoading(false);
