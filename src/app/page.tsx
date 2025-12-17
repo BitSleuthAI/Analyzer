@@ -85,18 +85,41 @@ export default function ConnectWalletPage() {
     setIsSubmitting(true);
     setError(null);
 
-    const result = await addXpub(values.xpub);
+    // Show progress toast to indicate long-running operation
+    const progressToast = toast({
+      title: "Analyzing wallet...",
+      description: "This may take 30-60 seconds for wallets with transaction history.",
+      duration: 60000, // Show for up to 60 seconds
+    });
 
-    if (result.error) {
-      setError(result.error);
+    try {
+      const result = await addXpub(values.xpub);
+
+      // Dismiss the progress toast
+      if (progressToast?.dismiss) {
+        progressToast.dismiss();
+      }
+
+      if (result.error) {
+        setError(result.error);
+        setIsSubmitting(false);
+      } else {
+        setIsSubmitting(false);
+        toast({
+          title: "Connection Successful",
+          description: "Redirecting to your dashboard.",
+        });
+        // The redirect is now handled by the useEffect hook above,
+        // which waits for the activeXpub state to update.
+      }
+    } catch (error) {
+      // Dismiss the progress toast
+      if (progressToast?.dismiss) {
+        progressToast.dismiss();
+      }
+      
+      setError(error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.');
       setIsSubmitting(false);
-    } else {
-      toast({
-        title: "Connection Successful",
-        description: "Redirecting to your dashboard.",
-      });
-      // The redirect is now handled by the useEffect hook above,
-      // which waits for the activeXpub state to update.
     }
   }
 
@@ -233,7 +256,10 @@ export default function ConnectWalletPage() {
               />
               <Button type="submit" className="w-full font-bold shadow-md hover:shadow-lg transition-shadow" size="lg" disabled={isSubmitting}>
                 {isSubmitting ? (
-                  <Loader2 className="animate-spin" />
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Validating wallet...
+                  </>
                 ) : (
                   <>
                     <Lock className="mr-2 h-4 w-4" />
