@@ -95,16 +95,9 @@ export default function ConnectWalletPage() {
     try {
       const result = await addXpub(values.xpub);
 
-      // Dismiss the progress toast
-      if (progressToast?.dismiss) {
-        progressToast.dismiss();
-      }
-
       if (result.error) {
         setError(result.error);
-        setIsSubmitting(false);
       } else {
-        setIsSubmitting(false);
         toast({
           title: "Connection Successful",
           description: "Redirecting to your dashboard.",
@@ -113,12 +106,13 @@ export default function ConnectWalletPage() {
         // which waits for the activeXpub state to update.
       }
     } catch (error) {
-      // Dismiss the progress toast
+      // Handle any unexpected errors that might occur
+      setError(error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.');
+    } finally {
+      // Dismiss the progress toast and reset submitting state
       if (progressToast?.dismiss) {
         progressToast.dismiss();
       }
-      
-      setError(error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.');
       setIsSubmitting(false);
     }
   }
