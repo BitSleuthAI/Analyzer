@@ -6,7 +6,7 @@ This optimization transforms the BitSleuth wallet login experience from "I gave 
 
 ## Problem Statement
 
-User reported with XPUB: `xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWKiKrhko4egpiMZbpiaQL2jkwSB1icqYh2cfDfVxdx4df189oLKnC5fSwqPfgyP3hooxujYzAu3fDVmz`
+User reported with test XPUB during development
 
 **Issues:**
 - Login takes "a couple of minutes" (30-60s for address discovery)
@@ -377,9 +377,9 @@ $ npm run build
 - [ ] Fresh blockchain data updates seamlessly in background
 - [ ] No UI blocking or freezing during any operation
 
-### Test with Provided XPUB
+### Testing Instructions
 ```
-xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWKiKrhko4egpiMZbpiaQL2jkwSB1icqYh2cfDfVxdx4df189oLKnC5fSwqPfgyP3hooxujYzAu3fDVmz
+Use your own test XPUB for performance validation
 ```
 
 **Expected Results:**
