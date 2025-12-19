@@ -34,6 +34,13 @@ import {
 import { useState, useEffect } from "react";
 import { useWallet } from "@/contexts/wallet-context";
 import { cn } from "@/lib/utils";
+import { 
+  DISCOVERY_TIMEOUT_SECONDS, 
+  DISCOVERY_TIMEOUT_MINUTES, 
+  STAGE_TRANSITION_TIMEOUT_MS,
+  SECOND_WARNING_THRESHOLD,
+  FINAL_WARNING_THRESHOLD 
+} from "@/lib/constants";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -54,7 +61,7 @@ export default function ConnectWalletPage() {
   const [loadingStage, setLoadingStage] = useState<string>('');
   const [elapsedTime, setElapsedTime] = useState(0);
 
-  const { addXpub, activeXpub, isLoading: isWalletLoading, loginWithNostr } = useWallet();
+  const { addXpub, activeXpub, isLoading: isWalletLoading, loginWithNostr, isDiscovering, discoveryProgress } = useWallet();
 
   const [isNostrLoginOpen, setNostrLoginOpen] = useState(false);
   const [isNostrSubmitting, setIsNostrSubmitting] = useState(false);
@@ -119,7 +126,7 @@ export default function ConnectWalletPage() {
         if (isSubmitting) {
           setLoadingStage('Finalizing wallet analysis...');
         }
-      }, 60000);
+      }, STAGE_TRANSITION_TIMEOUT_MS);
 
       const result = await addXpub(values.xpub);
 
@@ -182,7 +189,8 @@ export default function ConnectWalletPage() {
     const isNoTxError = error.includes('no transaction history');
     const isBadNsecError = error.includes('invalid or malformed');
     const isNoNostrWalletsError = error.includes('No saved wallets were found');
-    const isFriendlyError = isNoTxError || isBadNsecError || isNoNostrWalletsError;
+    const isTimeoutError = error.includes('timed out');
+    const isFriendlyError = isNoTxError || isBadNsecError || isNoNostrWalletsError || isTimeoutError;
 
     let icon, title;
 
@@ -195,6 +203,9 @@ export default function ConnectWalletPage() {
     } else if (isNoNostrWalletsError) {
       icon = <SearchX className="h-12 w-12 text-primary" />;
       title = "No Wallets Found";
+    } else if (isTimeoutError) {
+      icon = <AlertTriangle className="h-12 w-12 text-amber-500" />;
+      title = "Connection Timeout";
     } else {
       icon = <AlertTriangle className="h-12 w-12 text-destructive" />;
       title = "Connection Failed";
@@ -223,6 +234,17 @@ export default function ConnectWalletPage() {
             <p className="text-muted-foreground font-normal text-sm sm:text-base">
               {error}
             </p>
+            {isTimeoutError && (
+              <div className="mt-4 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-900 dark:text-amber-100 text-left">
+                <p className="font-semibold mb-2">Tips to resolve this:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>Check your internet connection is stable</li>
+                  <li>Try again when the network is less congested</li>
+                  <li>For wallets with many transactions, this may take longer</li>
+                  <li>Contact support if the issue persists</li>
+                </ul>
+              </div>
+            )}
           </div>
           <Button variant="outline" onClick={handleTryAgain} className="mt-2 sm:mt-4 w-full">
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -301,54 +323,86 @@ export default function ConnectWalletPage() {
                   <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                       <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                      Connecting Your Wallet
+                      {discoveryProgress && discoveryProgress.addressesWithActivity > 0 
+                        ? `Discovering Wallet - ${discoveryProgress.addressesWithActivity} Addresses Found`
+                        : 'Connecting Your Wallet'}
                     </DialogTitle>
                     <DialogDescription className="font-normal">
-                      Please wait while we analyze your Bitcoin wallet...
+                      {discoveryProgress 
+                        ? `${discoveryProgress.addressesChecked} addresses checked, ${discoveryProgress.addressesWithActivity} with activity`
+                        : 'Please wait while we analyze your Bitcoin wallet...'}
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">{loadingStage}</span>
-                        <span className="text-muted-foreground">{elapsedTime}s / ~120s</span>
+                    {discoveryProgress && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">
+                            {discoveryProgress.isComplete 
+                              ? '✅ Discovery complete!' 
+                              : `🔍 Batch ${discoveryProgress.currentBatch} - scanning addresses...`}
+                          </span>
+                          <span className="text-primary font-mono font-semibold">
+                            {discoveryProgress.addressesWithActivity} found
+                          </span>
+                        </div>
+                        <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
+                          <div 
+                            className="bg-gradient-to-r from-primary to-primary/70 h-full transition-all duration-500 ease-out"
+                            style={{ 
+                              width: discoveryProgress.isComplete 
+                                ? '100%' 
+                                : `${Math.min((discoveryProgress.addressesChecked / (discoveryProgress.addressesChecked + 20)) * 100, 95)}%` 
+                            }}
+                          />
+                        </div>
+                        {!discoveryProgress.isComplete && (
+                          <p className="text-xs text-muted-foreground text-center">
+                            Discovery continues until no more active addresses are found (BIP44 gap limit)
+                          </p>
+                        )}
                       </div>
-                      <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
-                        <div 
-                          className="bg-primary h-full transition-all duration-1000 ease-out"
-                          style={{ 
-                            width: `${Math.min(
-                              (elapsedTime / 120) * 100,
-                              95
-                            )}%` 
-                          }}
-                        />
+                    )}
+                    {!discoveryProgress && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">{loadingStage || 'Validating XPUB...'}</span>
+                          <span className="text-muted-foreground">{elapsedTime}s</span>
+                        </div>
+                        <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
+                          <div 
+                            className="bg-primary h-full transition-all duration-1000 ease-out"
+                            style={{ 
+                              width: `${Math.min((elapsedTime / DISCOVERY_TIMEOUT_SECONDS) * 100, 95)}%` 
+                            }}
+                          />
+                        </div>
                       </div>
-                    </div>
+                    )}
                     <div className="rounded-lg bg-muted p-3 text-xs space-y-1 text-muted-foreground">
                       <p className="flex items-center gap-2">
                         <ShieldCheck className="h-3 w-3 text-primary" />
-                        Discovering wallet addresses (typically 30-120s)
+                        {discoveryProgress 
+                          ? `Found ${discoveryProgress.addressesWithActivity} addresses with ${discoveryProgress.addressesChecked} checked`
+                          : 'Discovering wallet addresses (no timeout - continues until complete)'}
                       </p>
                       <p className="flex items-center gap-2">
                         <Activity className="h-3 w-3 text-primary" />
-                        Fetching transaction history from blockchain
+                        {discoveryProgress && discoveryProgress.addressesWithActivity > 0
+                          ? 'Transactions are being fetched in real-time'
+                          : 'Fetching transaction history from blockchain'}
                       </p>
                       <p className="flex items-center gap-2">
                         <BarChart3 className="h-3 w-3 text-primary" />
-                        Calculating security and performance metrics
+                        {discoveryProgress && discoveryProgress.addressesWithActivity > 0
+                          ? 'You can view your wallet while discovery continues!'
+                          : 'Calculating security and performance metrics'}
                       </p>
                     </div>
-                    {elapsedTime > 60 && elapsedTime <= 110 && (
-                      <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-900 dark:text-amber-100">
-                        <p className="font-semibold mb-1">Still processing...</p>
-                        <p>This wallet may have many addresses. Discovery can take up to 2 minutes. Please wait.</p>
-                      </div>
-                    )}
-                    {elapsedTime > 110 && (
-                      <div className="rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 p-3 text-xs text-red-900 dark:text-red-100">
-                        <p className="font-semibold mb-1">This is taking unusually long...</p>
-                        <p>The blockchain API may be experiencing issues. The operation will timeout at 120 seconds if it doesn't complete.</p>
+                    {discoveryProgress && discoveryProgress.addressesChecked > 40 && !discoveryProgress.isComplete && (
+                      <div className="rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 p-3 text-xs text-green-900 dark:text-green-100">
+                        <p className="font-semibold mb-1">🎉 Large wallet detected!</p>
+                        <p>Found {discoveryProgress.addressesWithActivity} addresses so far. Discovery will continue until no more active addresses are found (no timeout!).</p>
                       </div>
                     )}
                   </div>
