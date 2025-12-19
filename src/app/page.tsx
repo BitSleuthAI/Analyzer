@@ -34,7 +34,13 @@ import {
 import { useState, useEffect } from "react";
 import { useWallet } from "@/contexts/wallet-context";
 import { cn } from "@/lib/utils";
-import { DISCOVERY_TIMEOUT_SECONDS, DISCOVERY_TIMEOUT_MINUTES, STAGE_TRANSITION_TIMEOUT_MS } from "@/lib/constants";
+import { 
+  DISCOVERY_TIMEOUT_SECONDS, 
+  DISCOVERY_TIMEOUT_MINUTES, 
+  STAGE_TRANSITION_TIMEOUT_MS,
+  SECOND_WARNING_THRESHOLD,
+  FINAL_WARNING_THRESHOLD 
+} from "@/lib/constants";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -361,13 +367,13 @@ export default function ConnectWalletPage() {
                         <p>Address discovery in progress. This can take up to {DISCOVERY_TIMEOUT_MINUTES} minutes for wallets with many addresses.</p>
                       </div>
                     )}
-                    {elapsedTime > DISCOVERY_TIMEOUT_SECONDS / 2 && elapsedTime <= DISCOVERY_TIMEOUT_SECONDS * 0.83 && (
+                    {elapsedTime > DISCOVERY_TIMEOUT_SECONDS / 2 && elapsedTime <= DISCOVERY_TIMEOUT_SECONDS * SECOND_WARNING_THRESHOLD && (
                       <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-900 dark:text-amber-100">
                         <p className="font-semibold mb-1">Still discovering addresses...</p>
                         <p>Your wallet has many addresses or the network is slower than usual. This is normal for wallets with extensive transaction history.</p>
                       </div>
                     )}
-                    {elapsedTime > DISCOVERY_TIMEOUT_SECONDS * 0.83 && (
+                    {elapsedTime > DISCOVERY_TIMEOUT_SECONDS * FINAL_WARNING_THRESHOLD && (
                       <div className="rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 p-3 text-xs text-red-900 dark:text-red-100">
                         <p className="font-semibold mb-1">Almost there...</p>
                         <p>The operation will timeout at {DISCOVERY_TIMEOUT_SECONDS} seconds if it doesn't complete. If this happens, please check your internet connection and try again.</p>

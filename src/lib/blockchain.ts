@@ -325,6 +325,11 @@ export async function discoverUsedAddressesProgressive(
 /**
  * Optimized address discovery with smart type inference and progressive fallback
  * 
+ * BACKWARD COMPATIBILITY WRAPPER
+ * This function wraps the progressive version to maintain compatibility with existing code.
+ * Once all callsites are migrated to use discoverUsedAddressesProgressive directly,
+ * this wrapper can be removed.
+ * 
  * PERFORMANCE OPTIMIZATION STRATEGY:
  * ==================================
  * 
