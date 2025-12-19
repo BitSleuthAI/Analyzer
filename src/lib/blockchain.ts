@@ -109,8 +109,28 @@ async function detectActiveTypes(node: any, typesToCheck: AddressType[]): Promis
     return { activeTypes, detectionTime };
 }
 
-async function performDiscoveryForTypes(node: any, activeTypes: AddressType[], discoveryStartTime: number): Promise<string[]> {
+// Progressive discovery callback interface
+export interface DiscoveryProgress {
+    addressesChecked: number;
+    addressesWithActivity: number;
+    currentBatch: number;
+    isComplete: boolean;
+}
+
+export interface ProgressiveDiscoveryCallbacks {
+    onAddressFound?: (address: string, txCount: number) => void;
+    onBatchComplete?: (progress: DiscoveryProgress) => void;
+}
+
+async function performDiscoveryForTypesProgressive(
+    node: any, 
+    activeTypes: AddressType[], 
+    discoveryStartTime: number,
+    callbacks?: ProgressiveDiscoveryCallbacks
+): Promise<string[]> {
     const discoveredAddresses: string[] = [];
+    let totalAddressesChecked = 0;
+    let currentBatchNumber = 0;
 
     for (const type of activeTypes) {
         for (const chain of [0, 1]) { // 0 for external, 1 for internal
@@ -119,6 +139,7 @@ async function performDiscoveryForTypes(node: any, activeTypes: AddressType[], d
 
             while (gap < GAP_LIMIT) {
                 const batch = deriveAddressBatch(node, chain, index, index + GAP_LIMIT, type);
+                currentBatchNumber++;
 
                 const chunkSize = PARALLEL_BATCH_SIZE;
                 const addressStats: any[] = new Array(batch.length);
@@ -146,6 +167,8 @@ async function performDiscoveryForTypes(node: any, activeTypes: AddressType[], d
                 let foundInBatch = false;
                 for (let i = 0; i < addressStats.length; i++) {
                     const stats = addressStats[i];
+                    totalAddressesChecked++;
+                    
                     // Combine chain + mempool transaction counts for complete coverage
                     // This ensures pending transactions are included in address discovery
                     const totalTxCount = stats 
@@ -156,9 +179,24 @@ async function performDiscoveryForTypes(node: any, activeTypes: AddressType[], d
                         discoveredAddresses.push(batch[i]);
                         gap = 0;
                         foundInBatch = true;
+                        
+                        // Notify callback about found address
+                        if (callbacks?.onAddressFound) {
+                            callbacks.onAddressFound(batch[i], totalTxCount);
+                        }
                     } else {
                         gap++;
                     }
+                }
+
+                // Notify callback about batch completion
+                if (callbacks?.onBatchComplete) {
+                    callbacks.onBatchComplete({
+                        addressesChecked: totalAddressesChecked,
+                        addressesWithActivity: discoveredAddresses.length,
+                        currentBatch: currentBatchNumber,
+                        isComplete: false,
+                    });
                 }
 
                 if (!foundInBatch) {
@@ -174,7 +212,114 @@ async function performDiscoveryForTypes(node: any, activeTypes: AddressType[], d
     const uniqueAddresses = [...new Set(discoveredAddresses)];
     console.log(`[Discovery] Found ${uniqueAddresses.length} used addresses in ${totalDiscoveryTime}ms (${(totalDiscoveryTime/1000).toFixed(2)}s)`);
 
+    // Final callback with completion status
+    if (callbacks?.onBatchComplete) {
+        callbacks.onBatchComplete({
+            addressesChecked: totalAddressesChecked,
+            addressesWithActivity: uniqueAddresses.length,
+            currentBatch: currentBatchNumber,
+            isComplete: true,
+        });
+    }
+
     return uniqueAddresses;
+}
+
+async function performDiscoveryForTypes(node: any, activeTypes: AddressType[], discoveryStartTime: number): Promise<string[]> {
+    // Wrapper that calls progressive version without callbacks for backward compatibility
+    return performDiscoveryForTypesProgressive(node, activeTypes, discoveryStartTime);
+}
+
+/**
+ * Progressive address discovery with real-time callbacks
+ * This version supports streaming updates as addresses are discovered
+ * No timeout - continues until gap limit is reached (100% coverage)
+ */
+export async function discoverUsedAddressesProgressive(
+    xpub: string,
+    callbacks?: ProgressiveDiscoveryCallbacks
+): Promise<string[]> {
+    const discoveryStartTime = Date.now();
+    
+    // Validate XPUB format early to catch invalid inputs
+    let node;
+    try {
+        node = bip32.fromBase58(xpub, bitcoin.networks.bitcoin);
+    } catch (e) {
+        throw new Error('Invalid XPUB format. Please check that you entered the correct extended public key.');
+    }
+    
+    const inferenceResult = inferAddressTypesFromXpub(xpub);
+
+    // Quick provider readiness check (with fallback & retry under the hood)
+    try {
+        await esploraGet(`/blocks/tip/height`, 60);
+    } catch (e) {
+        throw new Error('Upstream data provider is temporarily unavailable. Please try again in a moment.');
+    }
+
+    let activeTypes: AddressType[] = [];
+
+    if (inferenceResult) {
+        // Strategy: Try primary type first (fast path for 95% of wallets)
+        console.log(`[Progressive Discovery] XPUB prefix indicates primary type: ${inferenceResult.primaryType}`);
+        
+        // First, try just the primary inferred type
+        activeTypes = [inferenceResult.primaryType];
+        const primaryDiscoveredAddresses = await performDiscoveryForTypesProgressive(
+            node, 
+            activeTypes, 
+            discoveryStartTime,
+            callbacks
+        );
+        
+        // If we found addresses, we're done! (Fast path - single type scan)
+        if (primaryDiscoveredAddresses.length > 0) {
+            console.log(`[Progressive Discovery] Found ${primaryDiscoveredAddresses.length} addresses using inferred type ${inferenceResult.primaryType} (fast path)`);
+            return primaryDiscoveredAddresses;
+        }
+        
+        // If no addresses found AND this prefix might use other types
+        if (inferenceResult.shouldCheckOthers) {
+            console.log(`[Progressive Discovery] No addresses found for ${inferenceResult.primaryType}, checking other types for xpub...`);
+            const typeDetection = await detectActiveTypes(node, inferenceResult.otherTypes);
+            
+            if (typeDetection.activeTypes.length > 0) {
+                activeTypes = typeDetection.activeTypes;
+                console.log(`[Progressive Discovery] Detected additional active types: ${activeTypes.join(', ')}`);
+                const fallbackDiscoveredAddresses = await performDiscoveryForTypesProgressive(
+                    node, 
+                    activeTypes, 
+                    discoveryStartTime,
+                    callbacks
+                );
+                return fallbackDiscoveredAddresses;
+            }
+        }
+        
+        // If we still found nothing, return empty (this is likely an unused wallet)
+        console.log(`[Progressive Discovery] No addresses found for ${xpub.substring(0, XPUB_LOG_PREFIX_LENGTH)}... (empty wallet)`);
+        return [];
+        
+    } else {
+        // Unknown XPUB prefix - check all types (rare case for non-standard XPUBs)
+        console.log(`[Progressive Discovery] Unknown XPUB prefix, checking all address types...`);
+        const typeDetection = await detectActiveTypes(node, ALL_ADDRESS_TYPES);
+        activeTypes = typeDetection.activeTypes;
+        console.log(`[Progressive Discovery] Detected active wallet types: ${activeTypes.join(', ')}`);
+        
+        if (activeTypes.length === 0) {
+            activeTypes = ['native']; // Default fallback
+        }
+        
+        const unknownPrefixDiscoveredAddresses = await performDiscoveryForTypesProgressive(
+            node,
+            activeTypes, 
+            discoveryStartTime,
+            callbacks
+        );
+        return unknownPrefixDiscoveredAddresses;
+    }
 }
 
 /**
@@ -202,77 +347,8 @@ async function performDiscoveryForTypes(node: any, activeTypes: AddressType[], d
  * - Unknown prefix: Full type detection (rare case)
  */
 async function discoverUsedAddresses(xpub: string): Promise<string[]> {
-    const discoveryStartTime = Date.now();
-    
-    // Validate XPUB format early to catch invalid inputs
-    let node;
-    try {
-        node = bip32.fromBase58(xpub, bitcoin.networks.bitcoin);
-    } catch (e) {
-        throw new Error('Invalid XPUB format. Please check that you entered the correct extended public key.');
-    }
-    
-    const inferenceResult = inferAddressTypesFromXpub(xpub);
-
-    // Quick provider readiness check (with fallback & retry under the hood)
-    try {
-        await esploraGet(`/blocks/tip/height`, 60);
-    } catch (e) {
-        throw new Error('Upstream data provider is temporarily unavailable. Please try again in a moment.');
-    }
-
-    let activeTypes: AddressType[] = [];
-    let typeDetectionTime = 0;
-
-    if (inferenceResult) {
-        // Strategy: Try primary type first (fast path for 95% of wallets)
-        console.log(`[Discovery] XPUB prefix indicates primary type: ${inferenceResult.primaryType}`);
-        
-        // First, try just the primary inferred type
-        activeTypes = [inferenceResult.primaryType];
-        const primaryDiscoveredAddresses = await performDiscoveryForTypes(node, activeTypes, discoveryStartTime);
-        
-        // If we found addresses, we're done! (Fast path - single type scan)
-        if (primaryDiscoveredAddresses.length > 0) {
-            console.log(`[Discovery] Found ${primaryDiscoveredAddresses.length} addresses using inferred type ${inferenceResult.primaryType} (fast path)`);
-            return primaryDiscoveredAddresses;
-        }
-        
-        // If no addresses found AND this prefix might use other types (e.g., xpub can use all types)
-        // then check other types, but only if the XPUB type is ambiguous
-        if (inferenceResult.shouldCheckOthers) {
-            console.log(`[Discovery] No addresses found for ${inferenceResult.primaryType}, checking other types for xpub...`);
-            // Use precomputed otherTypes array to avoid repeated filter operations
-            const typeDetection = await detectActiveTypes(node, inferenceResult.otherTypes);
-            
-            if (typeDetection.activeTypes.length > 0) {
-                activeTypes = typeDetection.activeTypes;
-                typeDetectionTime = typeDetection.detectionTime;
-                console.log(`[Discovery] Detected additional active types: ${activeTypes.join(', ')} in ${typeDetectionTime}ms`);
-                const fallbackDiscoveredAddresses = await performDiscoveryForTypes(node, activeTypes, discoveryStartTime);
-                return fallbackDiscoveredAddresses;
-            }
-        }
-        
-        // If we still found nothing, return empty (this is likely an unused wallet)
-        console.log(`[Discovery] No addresses found for ${xpub.substring(0, XPUB_LOG_PREFIX_LENGTH)}... (empty wallet)`);
-        return [];
-        
-    } else {
-        // Unknown XPUB prefix - check all types (rare case for non-standard XPUBs)
-        console.log(`[Discovery] Unknown XPUB prefix, checking all address types...`);
-        const typeDetection = await detectActiveTypes(node, ALL_ADDRESS_TYPES);
-        activeTypes = typeDetection.activeTypes;
-        typeDetectionTime = typeDetection.detectionTime;
-        console.log(`[Discovery] Detected active wallet types: ${activeTypes.join(', ')} in ${typeDetectionTime}ms`);
-        
-        if (activeTypes.length === 0) {
-            activeTypes = ['native']; // Default fallback
-        }
-        
-        const unknownPrefixDiscoveredAddresses = await performDiscoveryForTypes(node, activeTypes, discoveryStartTime);
-        return unknownPrefixDiscoveredAddresses;
-    }
+    // Use progressive version without callbacks for backward compatibility
+    return discoverUsedAddressesProgressive(xpub);
 }
 
 async function getCachedUsedAddresses(xpub: string): Promise<string[]> {
