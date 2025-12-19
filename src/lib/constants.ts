@@ -21,5 +21,4 @@ export const DISCOVERY_TIMEOUT_MINUTES = DISCOVERY_TIMEOUT_MS / 1000 / 60; // 4 
 /**
  * Stage transition timeout (occurs at halfway point of discovery timeout)
  */
-export const STAGE_TRANSITION_TIMEOUT_MS = (DISCOVERY_TIMEOUT_SECONDS / 2) * 1000; // 120 seconds (2 minutes)
-
+export const STAGE_TRANSITION_TIMEOUT_MS = DISCOVERY_TIMEOUT_MS / 2; // 120 seconds (2 minutes)
