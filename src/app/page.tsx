@@ -119,7 +119,7 @@ export default function ConnectWalletPage() {
         if (isSubmitting) {
           setLoadingStage('Finalizing wallet analysis...');
         }
-      }, 60000);
+      }, 120000);
 
       const result = await addXpub(values.xpub);
 
@@ -182,7 +182,8 @@ export default function ConnectWalletPage() {
     const isNoTxError = error.includes('no transaction history');
     const isBadNsecError = error.includes('invalid or malformed');
     const isNoNostrWalletsError = error.includes('No saved wallets were found');
-    const isFriendlyError = isNoTxError || isBadNsecError || isNoNostrWalletsError;
+    const isTimeoutError = error.includes('timed out');
+    const isFriendlyError = isNoTxError || isBadNsecError || isNoNostrWalletsError || isTimeoutError;
 
     let icon, title;
 
@@ -195,6 +196,9 @@ export default function ConnectWalletPage() {
     } else if (isNoNostrWalletsError) {
       icon = <SearchX className="h-12 w-12 text-primary" />;
       title = "No Wallets Found";
+    } else if (isTimeoutError) {
+      icon = <AlertTriangle className="h-12 w-12 text-amber-500" />;
+      title = "Connection Timeout";
     } else {
       icon = <AlertTriangle className="h-12 w-12 text-destructive" />;
       title = "Connection Failed";
@@ -223,6 +227,17 @@ export default function ConnectWalletPage() {
             <p className="text-muted-foreground font-normal text-sm sm:text-base">
               {error}
             </p>
+            {isTimeoutError && (
+              <div className="mt-4 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-900 dark:text-amber-100 text-left">
+                <p className="font-semibold mb-2">Tips to resolve this:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>Check your internet connection is stable</li>
+                  <li>Try again when the network is less congested</li>
+                  <li>For wallets with many transactions, this may take longer</li>
+                  <li>Contact support if the issue persists</li>
+                </ul>
+              </div>
+            )}
           </div>
           <Button variant="outline" onClick={handleTryAgain} className="mt-2 sm:mt-4 w-full">
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -311,14 +326,14 @@ export default function ConnectWalletPage() {
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">{loadingStage}</span>
-                        <span className="text-muted-foreground">{elapsedTime}s / ~120s</span>
+                        <span className="text-muted-foreground">{elapsedTime}s / ~240s</span>
                       </div>
                       <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
                         <div 
                           className="bg-primary h-full transition-all duration-1000 ease-out"
                           style={{ 
                             width: `${Math.min(
-                              (elapsedTime / 120) * 100,
+                              (elapsedTime / 240) * 100,
                               95
                             )}%` 
                           }}
@@ -328,7 +343,7 @@ export default function ConnectWalletPage() {
                     <div className="rounded-lg bg-muted p-3 text-xs space-y-1 text-muted-foreground">
                       <p className="flex items-center gap-2">
                         <ShieldCheck className="h-3 w-3 text-primary" />
-                        Discovering wallet addresses (typically 30-120s)
+                        Discovering wallet addresses (typically 30-240s)
                       </p>
                       <p className="flex items-center gap-2">
                         <Activity className="h-3 w-3 text-primary" />
@@ -339,16 +354,22 @@ export default function ConnectWalletPage() {
                         Calculating security and performance metrics
                       </p>
                     </div>
-                    {elapsedTime > 60 && elapsedTime <= 110 && (
-                      <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-900 dark:text-amber-100">
-                        <p className="font-semibold mb-1">Still processing...</p>
-                        <p>This wallet may have many addresses. Discovery can take up to 2 minutes. Please wait.</p>
+                    {elapsedTime > 60 && elapsedTime <= 120 && (
+                      <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3 text-xs text-blue-900 dark:text-blue-100">
+                        <p className="font-semibold mb-1">Processing continues...</p>
+                        <p>Address discovery in progress. This can take up to 4 minutes for wallets with many addresses.</p>
                       </div>
                     )}
-                    {elapsedTime > 110 && (
+                    {elapsedTime > 120 && elapsedTime <= 200 && (
+                      <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-900 dark:text-amber-100">
+                        <p className="font-semibold mb-1">Still discovering addresses...</p>
+                        <p>Your wallet has many addresses or the network is slower than usual. This is normal for wallets with extensive transaction history.</p>
+                      </div>
+                    )}
+                    {elapsedTime > 200 && (
                       <div className="rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 p-3 text-xs text-red-900 dark:text-red-100">
-                        <p className="font-semibold mb-1">This is taking unusually long...</p>
-                        <p>The blockchain API may be experiencing issues. The operation will timeout at 120 seconds if it doesn't complete.</p>
+                        <p className="font-semibold mb-1">Almost there...</p>
+                        <p>The operation will timeout at 240 seconds if it doesn't complete. If this happens, please check your internet connection and try again.</p>
                       </div>
                     )}
                   </div>

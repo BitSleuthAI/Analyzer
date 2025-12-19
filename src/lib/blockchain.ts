@@ -287,14 +287,15 @@ async function getCachedUsedAddresses(xpub: string): Promise<string[]> {
         return inFlight;
     }
 
-    // Wrap discovery with a 2-minute timeout to prevent indefinite hangs
-    const DISCOVERY_TIMEOUT_MS = 120000; // 2 minutes
+    // Wrap discovery with a 4-minute timeout to prevent indefinite hangs
+    // Extended from 2 to 4 minutes to accommodate wallets with many addresses
+    const DISCOVERY_TIMEOUT_MS = 240000; // 4 minutes
     
     let timeoutId: NodeJS.Timeout | undefined;
     const discoveryPromise = Promise.race([
         discoverUsedAddresses(xpub),
         new Promise<string[]>((_, reject) => {
-            timeoutId = setTimeout(() => reject(new Error('Address discovery timed out after 2 minutes. The wallet may have many addresses or the network is slow. Please try again.')), DISCOVERY_TIMEOUT_MS);
+            timeoutId = setTimeout(() => reject(new Error('Address discovery timed out after 4 minutes. This wallet has many addresses or the network is slow. Please check your internet connection and try again.')), DISCOVERY_TIMEOUT_MS);
         })
     ])
         .then(addresses => {
