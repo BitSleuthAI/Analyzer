@@ -675,6 +675,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     setIsInitialAiContentLoaded(false);
     setIsLoadingAiContent(false);
     setMessages([]);
+    // Reset all loading states on disconnect
+    setIsLoading(false);
+    setIsDiscovering(false);
+    setDiscoveryProgress(null);
     track('disconnect_wallet');
     try {
       // Clear all wallet-related data from localStorage
