@@ -701,7 +701,6 @@ export async function getWalletDataProgressive(
             return { data: null, error: 'Could not fetch critical BTC price data. The API may be down.' };
         }
 
-        const currentPrice = btcPrices[currency]?.last || 0;
         
         // If we have cached data, show it first
         if (cachedSnapshot && onProgress) {
