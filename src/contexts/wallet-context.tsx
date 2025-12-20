@@ -4,7 +4,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { getPublicKey, nip19, nip04, finalizeEvent, SimplePool } from 'nostr-tools';
 import type { Event as NostrEvent } from 'nostr-tools';
-import { getWalletData as fetchWalletData, discoverUsedAddressesProgressive, getWalletDataProgressive, type DiscoveryProgress, type PartialWalletData } from '@/lib/blockchain';
+import { getWalletData as fetchWalletData, getWalletDataProgressive, type DiscoveryProgress, type PartialWalletData } from '@/lib/blockchain';
 import type { WalletData, Message, SecurityRecommendation, NostrProfile, Currency } from '@/lib/types';
 import { getProactiveInsight } from '@/ai/flows/proactive-insights';
 import { getProactiveSuggestions } from '@/ai/flows/proactive-suggestions';
