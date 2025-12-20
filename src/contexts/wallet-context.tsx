@@ -586,7 +586,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       
       // Update wallet data with partial results
       // Convert PartialWalletData to WalletData by removing progressive fields
-      const { discoveryProgress: _, isComplete: __, ...walletData } = partialData;
+      const { discoveryProgress, isComplete, ...walletData } = partialData;
       setData(walletData as WalletData);
       
       // If complete, mark as no longer discovering
