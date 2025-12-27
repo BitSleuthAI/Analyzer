@@ -12,15 +12,25 @@ BitSleuth uses Tailwind CSS for styling, and the Tailwind CSS Language Server pr
 
 ## Installation
 
-### Global Installation (Recommended for Development)
+### Automatic Installation (Recommended)
 
-The Tailwind CSS language server is installed globally for optimal performance:
+The Tailwind CSS language server is included in the project's `devDependencies` and will be installed automatically when you run:
+
+```bash
+npm install
+```
+
+This ensures all developers use the same version (`^0.14.29`) and maintains consistency across the team.
+
+### Global Installation (Optional)
+
+If you prefer a global installation for use across multiple projects:
 
 ```bash
 npm install -g @tailwindcss/language-server
 ```
 
-This has been set up for the BitSleuth development environment.
+Note: The VS Code extension will use the local version from `node_modules` if available, falling back to the global installation.
 
 ### VS Code Extension
 

@@ -59,10 +59,6 @@ Install and run:
 
 ```bash
 npm install
-
-# Optional: Install Tailwind CSS Language Server for enhanced IDE support
-npm install -g @tailwindcss/language-server
-
 # Start the web app
 npm run dev
 
@@ -72,7 +68,7 @@ npm run genkit:dev
 
 App runs on `http://localhost:3000` by default.
 
-For VS Code users, install the recommended "Tailwind CSS IntelliSense" extension for autocomplete and class previews. See [Tailwind Setup Guide](docs/TAILWIND_SETUP.md) for details.
+For VS Code users, install the recommended "Tailwind CSS IntelliSense" extension for autocomplete and class previews. The Tailwind CSS language server is included in `devDependencies` and installed automatically. See [Tailwind Setup Guide](docs/TAILWIND_SETUP.md) for details.
 
 ## Environment variables
 
