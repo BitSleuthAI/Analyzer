@@ -70,7 +70,7 @@ export default function ConnectWalletPage() {
   });
 
   const nostrFormSchema = z.object({
-    nsec: z.string().startsWith('nsec1', { message: 'Nostr private key must start with "nsec1"' }),
+    nsec: z.string().startsWith('nsec1', { error: 'Nostr private key must start with "nsec1"' }),
   });
 
   const nostrForm = useForm<z.infer<typeof nostrFormSchema>>({
