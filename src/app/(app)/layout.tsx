@@ -515,7 +515,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <Sidebar collapsible="icon">
+      <Sidebar collapsible="icon" variant="inset">
         <SidebarHeader>
           <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
             <div className="h-8 w-8 rounded-full grid place-items-center bg-white dark:bg-transparent">
