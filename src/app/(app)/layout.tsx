@@ -589,7 +589,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background/80 px-4 backdrop-blur-sm gap-2">
+        <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background/80 px-4 backdrop-blur-sm gap-2">
             <div className="flex items-center justify-start gap-2 sm:gap-4 min-w-0">
               <SidebarTrigger />
               <div className="hidden sm:block">
