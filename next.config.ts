@@ -1,5 +1,3 @@
-
-
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
@@ -9,9 +7,7 @@ const nextConfig: NextConfig = {
   // Development-specific optimizations
   ...(process.env.NODE_ENV === 'development' && {
     onDemandEntries: {
-      // Period (in ms) where the server will keep pages in the buffer
       maxInactiveAge: 25 * 1000,
-      // Number of pages that should be kept simultaneously without being disposed
       pagesBufferLength: 2,
     },
   }),
@@ -35,7 +31,7 @@ const nextConfig: NextConfig = {
       },
     ],
     formats: ['image/webp', 'image/avif'],
-    minimumCacheTTL: 31536000, // 1 year
+    minimumCacheTTL: 31536000,
   },
   // Headers for better SEO and security
   async headers() {
@@ -98,161 +94,20 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  // Add chunk loading optimization
+  // Updated experimental flags for Next.js 16
   experimental: {
-    optimizeCss: false, // Disabled to fix critters module issue
-    // Enable WASM support for edge runtime
-    webpackBuildWorker: true,
-    // Improve chunk loading reliability
     webVitalsAttribution: ['CLS', 'LCP'],
-    // Enable better chunk splitting
     optimizePackageImports: ['@radix-ui/react-icons', 'lucide-react'],
+    turbopackUseSystemTlsCerts: true,
   },
-  // Acknowledge use of webpack config (Next.js 16 uses Turbopack by default)
-  turbopack: {},
-  // Improve chunk loading reliability
-  webpack: (config, { isServer, dev }) => {
-    // Enable WebAssembly support
-    config.experiments = {
-      ...config.experiments,
-      asyncWebAssembly: true,
-      syncWebAssembly: true, // Add this for better WASM support
-    };
-    
-    config.module.rules.push({
-      test: /\.wasm$/,
-      type: 'asset/resource',
-      generator: {
-        filename: 'static/wasm/[name].[hash][ext]',
-      },
-    });
-
-    // Fix handlebars webpack compatibility
-    config.resolve.fallback = {
-      ...config.resolve.fallback,
-      fs: false,
-      path: false,
-      crypto: false,
-    };
-
-    // Exclude problematic modules from webpack processing
-    config.externals = config.externals || [];
-    if (Array.isArray(config.externals)) {
-      config.externals.push('handlebars', 'dotprompt');
-    }
-
-    // Ignore problematic modules during server-side rendering
-    if (isServer) {
-      config.externals = config.externals || [];
-      if (Array.isArray(config.externals)) {
-        config.externals.push('handlebars', 'dotprompt', '@bitcoinerlab/secp256k1');
-      }
-    }
-
-    // Add specific WASM handling for client-side and edge runtime
-    if (!isServer) {
-      config.resolve.alias = {
-        ...config.resolve.alias,
-        // Ensure WASM files are properly resolved
-        '@bitcoinerlab/secp256k1': '@bitcoinerlab/secp256k1/lib/index.js',
-      };
-    }
-
-    // Handle WASM files for edge runtime (next/og)
-    config.resolve.fallback = {
-      ...config.resolve.fallback,
-      fs: false,
-      path: false,
-      crypto: false,
-      stream: false,
-      util: false,
-      buffer: false,
-      process: false,
-    };
-
-    // Configure WASM loading for edge runtime
-    config.output = {
-      ...config.output,
-      webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
-    };
-
-    // Add chunk loading error handling and optimization (only in production)
-    if (!isServer && process.env.NODE_ENV === 'production') {
-      config.optimization = {
-        ...config.optimization,
-        splitChunks: {
-          ...config.optimization?.splitChunks,
-          chunks: 'all',
-          minSize: 20000,
-          maxSize: 244000,
-          cacheGroups: {
-            ...config.optimization?.splitChunks?.cacheGroups,
-            default: {
-              minChunks: 2,
-              priority: -20,
-              reuseExistingChunk: true,
-            },
-            vendor: {
-              test: /[\\/]node_modules[\\/]/,
-              name: 'vendors',
-              priority: -10,
-              chunks: 'all',
-            },
-            common: {
-              name: 'common',
-              minChunks: 2,
-              priority: -5,
-              reuseExistingChunk: true,
-            },
-          },
-        },
-        // Add runtime chunk for better caching
-        runtimeChunk: {
-          name: 'runtime',
-        },
-      };
-    }
-
-    // Add chunk loading timeout configuration (only for client-side)
-    if (!isServer) {
-      config.output = {
-        ...config.output,
-        // Increase timeout for chunk loading
-        chunkLoadTimeout: 120000, // 2 minutes
-      };
-    }
-
-    // Ensure webpack runtime compatibility
-    if (!isServer) {
-      config.resolve = {
-        ...config.resolve,
-        fallback: {
-          ...config.resolve.fallback,
-          // Ensure webpack runtime functions are available
-          module: false,
-        },
-      };
-    }
-
-    // Ensure static files are handled correctly (only for client-side)
-    if (!isServer) {
-      config.module = {
-        ...config.module,
-        rules: [
-          ...config.module.rules,
-          {
-            test: /\.(ico|png|jpg|jpeg|gif|svg)$/i,
-            type: 'asset/resource',
-            generator: {
-              filename: 'static/[name].[hash][ext]',
-            },
-          },
-        ],
-      };
-    }
-
-    return config;
+  // Turbopack configuration (replaces webpack)
+  // Turbopack has native WASM support - no custom config needed
+  turbopack: {
+    // Turbopack handles WASM natively
+    // Add module resolution rules if needed
+    resolveExtensions: ['.ts', '.tsx', '.js', '.jsx', '.json', '.wasm'],
   },
+  // REMOVED: webpack config - not compatible with Turbopack
 };
 
-module.exports = nextConfig;
+export default nextConfig;
