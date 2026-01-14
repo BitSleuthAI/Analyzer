@@ -521,7 +521,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
             <div className="h-8 w-8 rounded-full grid place-items-center bg-white dark:bg-transparent">
               <Logo className="h-8 w-8" style={{ color: 'hsl(var(--brand))' }} />
             </div>
-            <span className="font-headline text-2xl font-bold tracking-tighter text-black dark:text-white group-data-[collapsible=icon]:hidden">BitSleuth</span>
+            <span className="font-headline text-2xl font-bold tracking-tighter text-sidebar-foreground group-data-[collapsible=icon]:hidden">BitSleuth</span>
           </div>
         </SidebarHeader>
         <SidebarContent>
