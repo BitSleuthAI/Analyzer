@@ -291,7 +291,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { activeXpub, isLoading, disconnect, nostrNpub, nostrProfile, isNostrReady, connectNostr, updateNostrProfile, showSaveXpubsPrompt, setShowSaveXpubsPrompt, saveXpubsToNostr } = useWallet();
-  const { setOpenMobile } = useSidebar();
+  const { setOpenMobile, state: sidebarState } = useSidebar();
   const { toast } = useToast();
   const [isNostrDialogOpen, setNostrDialogOpen] = React.useState(false);
   const [isEditProfileOpen, setEditProfileOpen] = React.useState(false);
@@ -613,7 +613,10 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
               )}
             </div>
         </header>
-        <div className="relative flex min-h-svh flex-1 flex-col bg-background p-4 md:p-6 overflow-x-hidden">
+        <div className={cn(
+          "relative flex min-h-svh flex-1 flex-col bg-background overflow-x-hidden transition-[padding] duration-200 ease-linear",
+          sidebarState === 'collapsed' ? "p-4 md:p-6 lg:p-8" : "p-3 md:p-4 lg:p-5"
+        )}>
           <AnalyticsWarning />
           {children}
         </div>
