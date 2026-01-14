@@ -515,7 +515,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <Sidebar collapsible="icon">
+      <Sidebar collapsible="icon" variant="sidebar">
         <SidebarHeader>
           <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
             <div className="h-8 w-8 rounded-full grid place-items-center bg-white dark:bg-transparent">
@@ -613,10 +613,10 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
               )}
             </div>
         </header>
-        <main className="relative flex min-h-svh flex-1 flex-col bg-background p-4 md:p-6 peer-data-[variant=inset]:min-h-[calc(100svh-theme(spacing.4))] md:peer-data-[variant=inset]:m-2 md:peer-data-[state=collapsed]:peer-data-[variant=inset]:ml-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow overflow-x-hidden">
+        <div className="relative flex min-h-svh flex-1 flex-col bg-background p-4 md:p-6 overflow-x-hidden">
           <AnalyticsWarning />
           {children}
-        </main>
+        </div>
       </SidebarInset>
 
       <AlertDialog open={isUpdateAvailable && !isUpdateDismissed}>
