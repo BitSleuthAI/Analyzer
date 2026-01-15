@@ -25,17 +25,21 @@ type WalletState = {
   data: WalletData | null;
   isLoading: boolean;
   isLoadingAiContent: boolean;
+  isRecommendationsLoading: boolean;
+  aiContentError: string | null;
   error: string | null;
   messages: Message[];
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   suggestions: string[];
   recommendations: SecurityRecommendation[];
+  recommendationsError: string | null;
   setActiveXpub: (xpub: string | null) => void;
   addXpub: (xpub: string) => Promise<{ success: boolean; error: string | null }>;
   removeXpub: (xpub: string) => Promise<void>;
   refetch: () => void;
   disconnect: () => void;
   refreshRecommendations: () => void;
+  refreshAiContent: (options?: { force?: boolean }) => void;
   // Currency state
   currency: Currency;
   setCurrency: (currency: Currency) => void;
@@ -110,8 +114,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [recommendations, setRecommendations] = useState<SecurityRecommendation[]>([]);
+  const [recommendationsError, setRecommendationsError] = useState<string | null>(null);
   const [isInitialAiContentLoaded, setIsInitialAiContentLoaded] = useState(false);
   const [isLoadingAiContent, setIsLoadingAiContent] = useState(false);
+  const [isRecommendationsLoading, setIsRecommendationsLoading] = useState(false);
+  const [aiContentError, setAiContentError] = useState<string | null>(null);
   const [discoveryProgress, setDiscoveryProgress] = useState<DiscoveryProgress | null>(null);
   const [isDiscovering, setIsDiscovering] = useState(false);
   const { track } = useAnalytics();
@@ -154,10 +161,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     setActiveXpub(newXpub);
     setError(null);
     setRecommendations([]);
+    setRecommendationsError(null);
+    setIsRecommendationsLoading(false);
     setSuggestions([]);
     setMessages([generateInitialGreetingMessage()]);
     setIsInitialAiContentLoaded(false);
     setIsLoadingAiContent(false);
+    setAiContentError(null);
     setDiscoveryProgress(null);
     setIsDiscovering(false);
 
@@ -620,8 +630,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     setSuggestions([]);
     setRecommendations([]);
+    setRecommendationsError(null);
     setIsInitialAiContentLoaded(false);
     setIsLoadingAiContent(false);
+    setIsRecommendationsLoading(false);
+    setAiContentError(null);
     setMessages([]);
     // Reset all loading states on disconnect
     setIsLoading(false);
@@ -896,6 +909,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const refreshRecommendations = useCallback(async () => {
     if (!data || !activeXpub) return;
 
+    setIsRecommendationsLoading(true);
+    setRecommendationsError(null);
+
     const walletSummary = JSON.stringify({
       opsecThreat: data.opsecThreat,
       dustUtxoCount: data.dustUtxoCount,
@@ -919,6 +935,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
         if (!isExpired && !hasRelevantChanges) {
           setRecommendations(parsed.recommendations);
+          setIsRecommendationsLoading(false);
           return;
         }
 
@@ -938,36 +955,55 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       const recommendationsResult = await getSecurityRecommendations({ walletSummary });
-      const recs = recommendationsResult.recommendations ?? [];
+      const recs = Array.isArray(recommendationsResult.recommendations)
+        ? recommendationsResult.recommendations
+        : [];
+      const hasValidRecommendations = recs.length > 0;
 
-      setRecommendations(recs);
+      if (hasValidRecommendations) {
+        setRecommendations(recs);
+      } else if (!hasCachedRecommendations) {
+        setRecommendations([]);
+        setRecommendationsError('We could not generate recommendations right now. Please try again.');
+      }
 
-      try {
-        localStorage.setItem(
-          cacheKey,
-          JSON.stringify({
-            recommendations: recs,
-            timestamp: Date.now(),
-            summary: walletSummary,
-          }),
-        );
-      } catch (cacheError) {
-        logger.warn('Failed to cache security recommendations:', cacheError);
+      if (hasValidRecommendations) {
+        try {
+          localStorage.setItem(
+            cacheKey,
+            JSON.stringify({
+              recommendations: recs,
+              timestamp: Date.now(),
+              summary: walletSummary,
+            }),
+          );
+        } catch (cacheError) {
+          logger.warn('Failed to cache security recommendations:', cacheError);
+        }
       }
     } catch (e) {
       logger.error("Failed to refresh security recommendations:", e);
+      if (!hasCachedRecommendations) {
+        setRecommendationsError('We could not load recommendations right now. Please try again.');
+      }
+    } finally {
+      setIsRecommendationsLoading(false);
     }
   }, [activeXpub, data]);
 
-  useEffect(() => {
-    if (!data || isInitialAiContentLoaded) {
+  const refreshAiContent = useCallback(
+    async (options?: { force?: boolean }) => {
+      if (!data || isLoadingAiContent) {
         return;
-    }
+      }
 
-    // NON-BLOCKING AI CONTENT GENERATION
-    // This runs in the background and doesn't block the UI from showing wallet data
-    const generateInitialChatContent = async () => {
+      if (isInitialAiContentLoaded && !options?.force) {
+        return;
+      }
+
       setIsLoadingAiContent(true);
+      setAiContentError(null);
+
       try {
         const summaryPayload = {
           balanceBTC: data.balanceBTC,
@@ -982,38 +1018,53 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           hasOldTxs: data.transactions.some(tx => new Date(tx.date).getFullYear() < new Date().getFullYear() - 1),
         };
 
-        const insightPayload = { ...summaryPayload, utxos: data.utxos.slice(0, 20), transactions: data.transactions.slice(0, 10).map(tx => ({ fee: tx.fee, btc: tx.btc, date: tx.date })) };
-        
+        const insightPayload = {
+          ...summaryPayload,
+          utxos: data.utxos.slice(0, 20),
+          transactions: data.transactions.slice(0, 10).map(tx => ({ fee: tx.fee, btc: tx.btc, date: tx.date })),
+        };
+
         // Run AI flows in parallel and update UI progressively as they complete
         const [insightResult, suggestionsResult] = await Promise.all([
           getProactiveInsight({ walletData: JSON.stringify(insightPayload) }),
           getProactiveSuggestions({ walletSummary: JSON.stringify(summaryPayload) }),
         ]);
 
-        if (insightResult.insight) {
-          const insightMessage: Message = { role: 'assistant', content: insightResult.insight };
+        const insightText = insightResult.insight?.trim();
+        if (insightText) {
+          const insightMessage: Message = { role: 'assistant', content: insightText };
           setMessages((prev) => [...prev, insightMessage]);
+        } else {
+          setAiContentError('AI insights are unavailable right now. Please try again.');
         }
+
         if (suggestionsResult.suggestions && suggestionsResult.suggestions.length > 0) {
           setSuggestions(suggestionsResult.suggestions);
         }
-
       } catch (e) {
-        console.error("Failed to generate proactive content:", e);
+        logger.error('Failed to generate proactive content:', e);
+        setAiContentError('AI insights are unavailable right now. Please try again.');
       } finally {
         setIsInitialAiContentLoaded(true);
         setIsLoadingAiContent(false);
       }
-    };
+    },
+    [data, isInitialAiContentLoaded, isLoadingAiContent],
+  );
+
+  useEffect(() => {
+    if (!data || isInitialAiContentLoaded) {
+      return;
+    }
 
     if (messages.length === 0) {
-        setMessages([generateInitialGreetingMessage()]);
+      setMessages([generateInitialGreetingMessage()]);
     }
-    
+
     // Fire and forget - don't await this
     // The UI will show wallet data immediately while AI processes in background
-    generateInitialChatContent();
-  }, [data, isInitialAiContentLoaded, messages.length]);
+    refreshAiContent();
+  }, [data, isInitialAiContentLoaded, messages.length, refreshAiContent]);
 
   // Derived currency values
   const fiatPrice = data?.btcPrices?.[currency]?.last || 0;
@@ -1034,7 +1085,26 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <WalletContext.Provider value={{
-      activeXpub, xpubs, data, isLoading, isLoadingAiContent, error, messages, setMessages, suggestions, recommendations, setActiveXpub: setActiveXpubAndPersist, addXpub, removeXpub, refetch: getWalletData, disconnect, refreshRecommendations, 
+      activeXpub,
+      xpubs,
+      data,
+      isLoading,
+      isLoadingAiContent,
+      isRecommendationsLoading,
+      aiContentError,
+      error,
+      messages,
+      setMessages,
+      suggestions,
+      recommendations,
+      recommendationsError,
+      setActiveXpub: setActiveXpubAndPersist,
+      addXpub,
+      removeXpub,
+      refetch: getWalletData,
+      disconnect,
+      refreshRecommendations,
+      refreshAiContent,
       currency, setCurrency, supportedCurrencies: SUPPORTED_CURRENCIES, fiatPrice, fiatBalance, currencySymbol,
       discoveryProgress, isDiscovering,
       nostrNpub, nostrProfile, isNostrReady, connectNostr, loginWithNostr, updateNostrProfile, showSaveXpubsPrompt, setShowSaveXpubsPrompt, saveXpubsToNostr, publishNostrNote
