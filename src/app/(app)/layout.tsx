@@ -537,8 +537,14 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
                   onClick={handleLinkClick}
                 >
                   <Link href={item.href}>
-                    <item.icon />
-                    <span>{item.label}</span>
+                    <span className="flex h-6 w-6 items-center justify-center shrink-0">
+                      <item.icon className="h-6 w-6" />
+                    </span>
+                    <span className="min-w-0 flex-1 overflow-hidden">
+                      <span className="block truncate leading-none transition-[opacity,transform] duration-200 ease-linear group-data-[collapsible=icon]:translate-x-1 group-data-[collapsible=icon]:opacity-0">
+                        {item.label}
+                      </span>
+                    </span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -839,7 +845,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     
 
     
-
 
 
 
