@@ -24,7 +24,7 @@ const SIDEBAR_COOKIE_NAME = "sidebar_state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 const SIDEBAR_WIDTH = "16rem"
 const SIDEBAR_WIDTH_MOBILE = "18rem"
-const SIDEBAR_WIDTH_ICON = "3rem"
+const SIDEBAR_WIDTH_ICON = "3.5rem"
 const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 
 type SidebarContext = {
@@ -178,6 +178,13 @@ const Sidebar = React.forwardRef<
   ) => {
     const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
     const [isMounted, setIsMounted] = React.useState(false);
+    const collapsedWidth =
+      collapsible === "icon"
+        ? variant === "floating" || variant === "inset"
+          ? "calc(var(--sidebar-width-icon) + 1rem)"
+          : "var(--sidebar-width-icon)"
+        : "var(--sidebar-width)"
+    const sidebarWidth = state === "collapsed" ? collapsedWidth : "var(--sidebar-width)"
 
     React.useEffect(() => {
         setIsMounted(true);
@@ -236,15 +243,7 @@ const Sidebar = React.forwardRef<
         {/* This is what handles the sidebar gap on desktop */}
         <div
           data-sidebar="spacer"
-          style={{ 
-            width: state === 'expanded' 
-              ? 'var(--sidebar-width)' 
-              : (collapsible === 'icon' 
-                  ? (variant === 'floating' || variant === 'inset' 
-                      ? 'calc(var(--sidebar-width-icon) + 1rem)' 
-                      : 'var(--sidebar-width-icon)') 
-                  : undefined)
-          }}
+          style={{ width: sidebarWidth }}
           className={cn(
             "duration-200 relative h-svh bg-transparent transition-[width] ease-linear",
             "group-data-[side=right]:rotate-180",
@@ -265,6 +264,7 @@ const Sidebar = React.forwardRef<
               : "group-data-[collapsible=icon]:w-[--sidebar-width-icon] group-data-[side=left]:border-r group-data-[side=right]:border-l",
             className
           )}
+          style={{ width: sidebarWidth }}
           {...props}
         >
           <div
@@ -527,7 +527,7 @@ const SidebarMenuItem = React.forwardRef<
     ref={ref}
     data-sidebar="menu-item"
     className={cn(
-      "group/menu-item relative group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center",
+      "group/menu-item relative",
       className
     )}
     {...props}
@@ -536,7 +536,7 @@ const SidebarMenuItem = React.forwardRef<
 SidebarMenuItem.displayName = "SidebarMenuItem"
 
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-none ring-sidebar-ring transition-colors focus-visible:ring-2 active:bg-sidebar-primary/30 disabled:pointer-events-none disabled:opacity-50 group-has-[[data-sidebar=menu-action]]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-primary data-[active=true]:font-medium data-[active=true]:text-sidebar-primary-foreground data-[state=open]:bg-sidebar-primary/20 group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:!p-1 group-data-[collapsible=icon]:[&>span]:hidden [&>span:last-child]:truncate [&>svg]:size-4 group-data-[collapsible=icon]:[&>svg]:!size-6",
+  "peer/menu-button grid w-full grid-cols-[var(--sidebar-width-icon)_minmax(0,1fr)] items-center overflow-hidden rounded-md text-left text-sm outline-none ring-sidebar-ring transition-colors focus-visible:ring-2 active:bg-sidebar-primary/30 disabled:pointer-events-none disabled:opacity-50 group-has-[[data-sidebar=menu-action]]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-primary data-[active=true]:font-medium data-[active=true]:text-sidebar-primary-foreground data-[state=open]:bg-sidebar-primary/20",
   {
     variants: {
       variant: {
@@ -547,7 +547,7 @@ const sidebarMenuButtonVariants = cva(
       size: {
         default: "h-9 text-sm",
         sm: "h-8 text-sm",
-        lg: "h-12 text-base group-data-[collapsible=icon]:!p-0",
+        lg: "h-12 text-base",
       },
     },
     defaultVariants: {
@@ -757,6 +757,7 @@ const SidebarMenuSubButton = React.forwardRef<
     />
   )
 })
+
 SidebarMenuSubButton.displayName = "SidebarMenuSubButton"
 
 export {

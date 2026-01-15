@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -187,18 +186,24 @@ function AccountSwitcher() {
                         role="button"
                         aria-label="Switch wallet"
                         onClick={handleTriggerClick}
-                        className="flex w-full cursor-pointer items-center gap-3 rounded-md p-2 hover:bg-primary/20 transition-colors group group-data-[collapsible=icon]:justify-center"
+                        className="grid w-full cursor-pointer grid-cols-[var(--sidebar-width-icon)_minmax(0,1fr)] items-center rounded-md py-2 transition-colors hover:bg-primary/20"
                     >
-                        <Avatar className="h-8 w-8">
-                            <AvatarFallback className='flex items-center justify-center bg-transparent'>
-                                <Bitcoin className="h-5 w-5 text-primary" />
-                            </AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col overflow-hidden text-left group-data-[collapsible=icon]:hidden">
-                            <span className='truncate font-semibold text-sm'>Active XPUB Key</span>
-                            <span className='truncate font-mono text-xs text-muted-foreground'>{`${activeXpub.substring(0, 12)}...`}</span>
+                        <div className="flex h-10 w-full items-center justify-center">
+                            <Avatar className="h-8 w-8">
+                                <AvatarFallback className='flex items-center justify-center bg-transparent'>
+                                    <Bitcoin className="h-5 w-5 text-primary" />
+                                </AvatarFallback>
+                            </Avatar>
                         </div>
-                        <ChevronsUpDown className="ml-auto h-4 w-4 shrink-0 opacity-50 group-data-[collapsible=icon]:hidden" />
+                        <div className="min-w-0 overflow-hidden pr-2 transition-[opacity,transform] duration-200 ease-linear group-data-[collapsible=icon]:translate-x-1 group-data-[collapsible=icon]:opacity-0">
+                            <div className="flex items-center gap-2">
+                                <div className="min-w-0 flex-1 text-left">
+                                    <span className='block truncate font-semibold text-sm'>Active XPUB Key</span>
+                                    <span className='block truncate font-mono text-xs text-muted-foreground'>{`${activeXpub.substring(0, 12)}...`}</span>
+                                </div>
+                                <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+                            </div>
+                        </div>
                     </div>
                 </PopoverTrigger>
                 <PopoverPortal>
@@ -291,7 +296,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { activeXpub, isLoading, disconnect, nostrNpub, nostrProfile, isNostrReady, connectNostr, updateNostrProfile, showSaveXpubsPrompt, setShowSaveXpubsPrompt, saveXpubsToNostr } = useWallet();
-  const { setOpenMobile } = useSidebar();
+  const { setOpenMobile, state: sidebarState } = useSidebar();
   const { toast } = useToast();
   const [isNostrDialogOpen, setNostrDialogOpen] = React.useState(false);
   const [isEditProfileOpen, setEditProfileOpen] = React.useState(false);
@@ -516,12 +521,16 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Sidebar collapsible="icon" variant="sidebar">
-        <SidebarHeader>
-          <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
-            <div className="h-8 w-8 rounded-full grid place-items-center bg-white dark:bg-transparent">
+        <SidebarHeader className="px-0">
+          <div className="grid grid-cols-[var(--sidebar-width-icon)_minmax(0,1fr)] items-center">
+            <div className="flex h-10 w-full items-center justify-center">
               <Logo className="h-8 w-8" style={{ color: 'hsl(var(--brand))' }} />
             </div>
-            <span className="font-headline text-2xl font-bold tracking-tighter text-sidebar-foreground group-data-[collapsible=icon]:hidden">BitSleuth</span>
+            <div className="min-w-0 overflow-hidden pr-2">
+              <span className="block truncate font-headline text-2xl font-bold tracking-tighter text-sidebar-foreground transition-[opacity,transform] duration-200 ease-linear group-data-[collapsible=icon]:translate-x-1 group-data-[collapsible=icon]:opacity-0">
+                BitSleuth
+              </span>
+            </div>
           </div>
         </SidebarHeader>
         <SidebarContent>
@@ -538,8 +547,14 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
                   onClick={handleLinkClick}
                 >
                   <Link href={item.href}>
-                    <item.icon />
-                    <span>{item.label}</span>
+                    <span className="flex h-full w-full items-center justify-center">
+                      <item.icon className="h-6 w-6" />
+                    </span>
+                    <span className="min-w-0 overflow-hidden pr-2">
+                      <span className="block truncate transition-[opacity,transform] duration-200 ease-linear group-data-[collapsible=icon]:translate-x-1 group-data-[collapsible=icon]:opacity-0">
+                        {item.label}
+                      </span>
+                    </span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -547,43 +562,46 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>
-            <div className="flex flex-col gap-2 p-2">
-                <div className="group-data-[collapsible=icon]:justify-center">
-                    <AccountSwitcher />
-                </div>
+            <div className="flex flex-col gap-2 px-0 py-2">
+                <AccountSwitcher />
                 <SidebarSeparator className="my-0 w-auto" />
-                <div className='flex items-center gap-3 p-2 group-data-[collapsible=icon]:justify-center'>
-                  {nostrNpub ? (
-                    <>
+                <div className="grid grid-cols-[var(--sidebar-width-icon)_minmax(0,1fr)] items-center rounded-md py-2">
+                  <div className="flex h-10 w-full items-center justify-center">
+                    {nostrNpub ? (
                       <Avatar className="h-8 w-8">
                           <AvatarImage src={nostrProfile?.picture} alt={nostrProfile?.display_name || nostrProfile?.name || 'Nostr User'} />
                           <AvatarFallback>
                               <OstrichIcon className="h-5 w-5 text-primary" />
                           </AvatarFallback>
                       </Avatar>
-                      <div className='flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden'>
-                        <span className='font-semibold text-sm truncate'>{nostrProfile?.display_name || nostrProfile?.name || 'Nostr User'}</span>
-                        <span className='text-xs text-muted-foreground truncate font-mono' title={nostrNpub}>{`${nostrNpub.substring(0, 12)}...`}</span>
-                      </div>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 ml-auto group-data-[collapsible=icon]:hidden shrink-0" onClick={() => setEditProfileOpen(true)}>
-                          <Pencil className="h-4 w-4" />
-                      </Button>
-                    </>
-                  ) : (
-                    <>
+                    ) : (
                       <Avatar className="h-8 w-8">
                         <AvatarFallback className="flex items-center justify-center bg-transparent">
                           <OstrichIcon className="h-5 w-5 text-primary" />
                         </AvatarFallback>
                       </Avatar>
-                      <div className='flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden'>
+                    )}
+                  </div>
+                  <div className="min-w-0 overflow-hidden pr-2 transition-[opacity,transform] duration-200 ease-linear group-data-[collapsible=icon]:translate-x-1 group-data-[collapsible=icon]:opacity-0">
+                    {nostrNpub ? (
+                      <div className="flex items-start gap-2">
+                        <div className='min-w-0 flex-1'>
+                          <span className='block truncate font-semibold text-sm'>{nostrProfile?.display_name || nostrProfile?.name || 'Nostr User'}</span>
+                          <span className='block truncate text-xs text-muted-foreground font-mono' title={nostrNpub}>{`${nostrNpub.substring(0, 12)}...`}</span>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setEditProfileOpen(true)}>
+                            <Pencil className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className='flex flex-col'>
                           <span className='font-semibold text-sm truncate'>Nostr Account</span>
                           <Button variant="link" size="sm" className="p-0 h-auto text-primary justify-start text-xs hover:no-underline" onClick={() => setNostrDialogOpen(true)} disabled={!isNostrReady}>
                             {isNostrReady ? 'Connect Account' : <Loader2 className="h-3 w-3 animate-spin"/>}
                           </Button>
                       </div>
-                    </>
-                  )}
+                    )}
+                  </div>
                 </div>
             </div>
         </SidebarFooter>
@@ -613,7 +631,10 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
               )}
             </div>
         </header>
-        <div className="relative flex min-h-svh flex-1 flex-col bg-background p-4 md:p-6 overflow-x-hidden">
+        <div className={cn(
+          "relative flex min-h-svh flex-1 flex-col bg-background overflow-x-hidden transition-[padding] duration-200 ease-linear",
+          sidebarState === 'collapsed' ? "p-4 md:p-6 lg:p-8" : "p-3 md:p-4 lg:p-5"
+        )}>
           <AnalyticsWarning />
           {children}
         </div>
@@ -837,9 +858,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     
 
     
-
-
-
 
 
 
