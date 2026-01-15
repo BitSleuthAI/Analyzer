@@ -515,12 +515,16 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Sidebar collapsible="icon" variant="sidebar">
-        <SidebarHeader>
-          <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
-            <div className="h-8 w-8 rounded-full grid place-items-center bg-white dark:bg-transparent">
+        <SidebarHeader className="px-0">
+          <div className="grid grid-cols-[var(--sidebar-width-icon)_minmax(0,1fr)] items-center">
+            <div className="flex h-10 w-full items-center justify-center">
               <Logo className="h-8 w-8" style={{ color: 'hsl(var(--brand))' }} />
             </div>
-            <span className="font-headline text-2xl font-bold tracking-tighter text-sidebar-foreground group-data-[collapsible=icon]:hidden">BitSleuth</span>
+            <div className="min-w-0 overflow-hidden pr-2">
+              <span className="block truncate font-headline text-2xl font-bold tracking-tighter text-sidebar-foreground transition-[opacity,transform] duration-200 ease-linear group-data-[collapsible=icon]:translate-x-1 group-data-[collapsible=icon]:opacity-0">
+                BitSleuth
+              </span>
+            </div>
           </div>
         </SidebarHeader>
         <SidebarContent>
@@ -537,11 +541,11 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
                   onClick={handleLinkClick}
                 >
                   <Link href={item.href}>
-                    <span className="flex h-6 w-6 items-center justify-center shrink-0">
+                    <span className="flex h-full w-full items-center justify-center">
                       <item.icon className="h-6 w-6" />
                     </span>
-                    <span className="min-w-0 flex-1 overflow-hidden">
-                      <span className="block truncate leading-none transition-[opacity,transform] duration-200 ease-linear group-data-[collapsible=icon]:translate-x-1 group-data-[collapsible=icon]:opacity-0">
+                    <span className="min-w-0 overflow-hidden pr-2">
+                      <span className="block truncate transition-[opacity,transform] duration-200 ease-linear group-data-[collapsible=icon]:translate-x-1 group-data-[collapsible=icon]:opacity-0">
                         {item.label}
                       </span>
                     </span>
@@ -845,7 +849,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     
 
     
-
 
 
 

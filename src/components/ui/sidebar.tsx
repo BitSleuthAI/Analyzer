@@ -24,7 +24,7 @@ const SIDEBAR_COOKIE_NAME = "sidebar_state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 const SIDEBAR_WIDTH = "16rem"
 const SIDEBAR_WIDTH_MOBILE = "18rem"
-const SIDEBAR_WIDTH_ICON = "3rem"
+const SIDEBAR_WIDTH_ICON = "3.5rem"
 const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 
 type SidebarContext = {
@@ -536,7 +536,7 @@ const SidebarMenuItem = React.forwardRef<
 SidebarMenuItem.displayName = "SidebarMenuItem"
 
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-none ring-sidebar-ring transition-colors focus-visible:ring-2 active:bg-sidebar-primary/30 disabled:pointer-events-none disabled:opacity-50 group-has-[[data-sidebar=menu-action]]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-primary data-[active=true]:font-medium data-[active=true]:text-sidebar-primary-foreground data-[state=open]:bg-sidebar-primary/20",
+  "peer/menu-button grid w-full grid-cols-[var(--sidebar-width-icon)_minmax(0,1fr)] items-center overflow-hidden rounded-md text-left text-sm outline-none ring-sidebar-ring transition-colors focus-visible:ring-2 active:bg-sidebar-primary/30 disabled:pointer-events-none disabled:opacity-50 group-has-[[data-sidebar=menu-action]]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-primary data-[active=true]:font-medium data-[active=true]:text-sidebar-primary-foreground data-[state=open]:bg-sidebar-primary/20",
   {
     variants: {
       variant: {
