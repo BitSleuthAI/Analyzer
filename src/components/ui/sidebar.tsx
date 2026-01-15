@@ -178,6 +178,13 @@ const Sidebar = React.forwardRef<
   ) => {
     const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
     const [isMounted, setIsMounted] = React.useState(false);
+    const collapsedWidth =
+      collapsible === "icon"
+        ? variant === "floating" || variant === "inset"
+          ? "calc(var(--sidebar-width-icon) + 1rem)"
+          : "var(--sidebar-width-icon)"
+        : "var(--sidebar-width)"
+    const sidebarWidth = state === "collapsed" ? collapsedWidth : "var(--sidebar-width)"
 
     React.useEffect(() => {
         setIsMounted(true);
@@ -236,15 +243,7 @@ const Sidebar = React.forwardRef<
         {/* This is what handles the sidebar gap on desktop */}
         <div
           data-sidebar="spacer"
-          style={{ 
-            width: state === 'expanded' 
-              ? 'var(--sidebar-width)' 
-              : (collapsible === 'icon' 
-                  ? (variant === 'floating' || variant === 'inset' 
-                      ? 'calc(var(--sidebar-width-icon) + 1rem)' 
-                      : 'var(--sidebar-width-icon)') 
-                  : undefined)
-          }}
+          style={{ width: sidebarWidth }}
           className={cn(
             "duration-200 relative h-svh bg-transparent transition-[width] ease-linear",
             "group-data-[side=right]:rotate-180",
@@ -265,6 +264,7 @@ const Sidebar = React.forwardRef<
               : "group-data-[collapsible=icon]:w-[--sidebar-width-icon] group-data-[side=left]:border-r group-data-[side=right]:border-l",
             className
           )}
+          style={{ width: sidebarWidth }}
           {...props}
         >
           <div
