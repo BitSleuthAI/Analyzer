@@ -170,9 +170,9 @@ export const WalletProvider = ({ children, testXpub }: { children: ReactNode; te
     // Invalidate any in-flight fetches immediately when switching wallets.
     activeRequestId.current += 1;
 
+    // Note: activeXpub is intentionally not in dependencies to avoid circular updates
     logger.loginFlow('setActiveXpubAndPersist', { 
       newXpub: newXpub?.substring(0, 20) + '...',
-      // eslint-disable-next-line react-hooks/exhaustive-deps
       previousXpub: activeXpub?.substring(0, 20) + '...'
     });
 
@@ -224,7 +224,8 @@ export const WalletProvider = ({ children, testXpub }: { children: ReactNode; te
     localStorage.removeItem('activeXpub');
     setData(null);
     setIsLoading(false);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // activeXpub intentionally omitted to avoid circular updates
 
   const fetchNostrProfile = useCallback(async (pubkey: string): Promise<NostrProfile | null> => {
     const pool = new SimplePool();
