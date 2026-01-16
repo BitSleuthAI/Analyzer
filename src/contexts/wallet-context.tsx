@@ -172,6 +172,7 @@ export const WalletProvider = ({ children, testXpub }: { children: ReactNode; te
 
     logger.loginFlow('setActiveXpubAndPersist', { 
       newXpub: newXpub?.substring(0, 20) + '...',
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       previousXpub: activeXpub?.substring(0, 20) + '...'
     });
 

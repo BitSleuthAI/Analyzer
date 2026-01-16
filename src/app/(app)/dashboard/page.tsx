@@ -40,6 +40,7 @@ export default function DashboardPage() {
       isLoading,
       activeXpub: xpub?.substring(0, 20) + '...'
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (!xpub) return <FullPageLoader />;
