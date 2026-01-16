@@ -170,6 +170,11 @@ export const WalletProvider = ({ children, testXpub }: { children: ReactNode; te
     // Invalidate any in-flight fetches immediately when switching wallets.
     activeRequestId.current += 1;
 
+    logger.loginFlow('setActiveXpubAndPersist', { 
+      newXpub: newXpub?.substring(0, 20) + '...',
+      previousXpub: activeXpub?.substring(0, 20) + '...'
+    });
+
     setActiveXpub(newXpub);
     setError(null);
     setRecommendations([]);
@@ -206,9 +211,11 @@ export const WalletProvider = ({ children, testXpub }: { children: ReactNode; te
       if (cachedData) {
         setData(cachedData);
         setIsLoading(false);
+        logger.loginFlow('cachedDataLoaded', { hasCachedData: true });
       } else {
         setData(null);
         setIsLoading(true);
+        logger.loginFlow('noCachedData', { willFetchFresh: true });
       }
       return;
     }
@@ -591,17 +598,22 @@ export const WalletProvider = ({ children, testXpub }: { children: ReactNode; te
   }, [isNostrReady, fetchNostrProfile, disconnectNostr, loadXpubsFromNostr, setActiveXpubAndPersist, testXpubValue]);
 
   const addXpub = useCallback(async (inputXpub: string): Promise<{ success: boolean; error: string | null }> => {
+    logger.loginFlow('addXpub_start', { xpubPrefix: inputXpub.substring(0, 4) });
+    
     const newXpub = normalizeXpub(inputXpub);
 
     if (!newXpub) {
+      logger.loginFlow('addXpub_error', { reason: 'empty_xpub' });
       return { success: false, error: 'XPUB key is required.' };
     }
 
     if (!isLikelyXpub(newXpub)) {
+      logger.loginFlow('addXpub_error', { reason: 'invalid_format' });
       return { success: false, error: 'Invalid XPUB format. Please check that you entered the correct extended public key.' };
     }
 
     if (xpubs.includes(newXpub)) {
+      logger.loginFlow('addXpub_existing', { xpub: newXpub.substring(0, 20) + '...' });
       setActiveXpubAndPersist(newXpub);
       return { success: true, error: null };
     }
@@ -610,6 +622,7 @@ export const WalletProvider = ({ children, testXpub }: { children: ReactNode; te
     setXpubs(newXpubs);
     localStorage.setItem('walletXpubs', JSON.stringify(newXpubs));
 
+    logger.loginFlow('addXpub_settingActive', { xpub: newXpub.substring(0, 20) + '...' });
     setActiveXpubAndPersist(newXpub);
 
     const savePreference = localStorage.getItem('nostr_save_preference');
@@ -626,6 +639,8 @@ export const WalletProvider = ({ children, testXpub }: { children: ReactNode; te
       connectMethod = 'xpub';
     }
     track('connect_wallet', { method: connectMethod });
+    
+    logger.loginFlow('addXpub_success', { connectMethod });
     return { success: true, error: null };
   }, [xpubs, setActiveXpubAndPersist, nostrNsec, saveXpubsToNostr, track]);
 

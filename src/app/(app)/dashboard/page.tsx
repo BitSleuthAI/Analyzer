@@ -26,10 +26,21 @@ import { useWallet } from '@/contexts/wallet-context';
 import { FullPageLoader, ErrorDisplay } from '@/components/ui/loader';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useEffect } from 'react';
+import { logger } from '@/lib/logger';
 
 export default function DashboardPage() {
   const { data, isLoading, isLoadingAiContent, error, activeXpub: xpub, fiatBalance, currency, fiatPrice, isDiscovering, discoveryProgress } = useWallet();
   const hasBlockingError = !!error && !data;
+
+  // Log when dashboard mounts for login flow tracking
+  useEffect(() => {
+    logger.loginFlow('dashboardMounted', { 
+      hasData: !!data, 
+      isLoading,
+      activeXpub: xpub?.substring(0, 20) + '...'
+    });
+  }, []);
 
   if (!xpub) return <FullPageLoader />;
   if (isLoading && !data) return <FullPageLoader />;
