@@ -29,7 +29,7 @@ import {
   BarChart3,
   Search,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useWallet } from "@/contexts/wallet-context";
 import { cn } from "@/lib/utils";
 import {
@@ -40,6 +40,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import Image from "next/image";
+import { LoginFlowTimer } from "@/lib/logger";
 
 
 const formSchema = z.object({
@@ -55,6 +56,12 @@ export default function ConnectWalletPage() {
   const [error, setError] = useState<string | null>(null);
   const [loadingStage, setLoadingStage] = useState<string>('');
   const [elapsedTime, setElapsedTime] = useState(0);
+  
+  // Timer for tracking login flow performance
+  const loginTimer = useRef(new LoginFlowTimer());
+  
+  // Track if we've already navigated to prevent duplicate navigation
+  const hasNavigated = useRef(false);
 
   const { addXpub, activeXpub, isLoading: isWalletLoading, loginWithNostr, discoveryProgress, testXpub } = useWallet();
 
@@ -79,9 +86,14 @@ export default function ConnectWalletPage() {
   });
 
   // If a wallet is already connected, redirect to the dashboard.
+  // This handles both initial page load and when activeXpub changes
   useEffect(() => {
-    if (activeXpub) {
+    if (activeXpub && !hasNavigated.current) {
+      loginTimer.current.mark('activeXpubDetected', { activeXpub: activeXpub.substring(0, 20) + '...' });
+      hasNavigated.current = true;
+      loginTimer.current.mark('navigationTriggered');
       router.push('/dashboard');
+      loginTimer.current.mark('routerPushCalled');
     }
   }, [activeXpub, router]);
 
@@ -96,6 +108,12 @@ export default function ConnectWalletPage() {
   }, [form, testXpub]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    // Reset navigation flag for new submission
+    hasNavigated.current = false;
+    
+    // Start timing the login flow
+    loginTimer.current.start('connectStart');
+    
     setIsSubmitting(true);
     setError(null);
     setElapsedTime(0);
@@ -111,6 +129,8 @@ export default function ConnectWalletPage() {
     }, 1000);
 
     try {
+      loginTimer.current.mark('validationStart');
+      
       // Update stage after initial validation
       stageTimeouts.push(setTimeout(() => {
         if (isActive) {
@@ -136,20 +156,32 @@ export default function ConnectWalletPage() {
         }
       }, STAGE_TRANSITION_TIMEOUT_MS));
 
+      loginTimer.current.mark('addXpubStart');
       const result = await addXpub(values.xpub);
+      loginTimer.current.mark('addXpubComplete', { success: !result.error });
 
       if (result.error) {
+        loginTimer.current.mark('addXpubError', { error: result.error });
         setError(result.error);
       } else {
-        setLoadingStage('Connection successful!');
+        loginTimer.current.mark('connectionSuccessful');
+        setLoadingStage('Connection successful! Redirecting...');
+        
         toast({
           title: "Connection Successful",
           description: "Redirecting to your dashboard.",
         });
-        // The redirect is now handled by the useEffect hook above,
-        // which waits for the activeXpub state to update.
+        
+        // The navigation will happen via the useEffect when activeXpub updates
+        // But we'll also log the summary here for debugging
+        setTimeout(() => {
+          if (process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_DEBUG_LOGIN_FLOW === 'true') {
+            console.log(loginTimer.current.getSummary());
+          }
+        }, 100);
       }
     } catch (error) {
+      loginTimer.current.mark('unexpectedError', { error: error instanceof Error ? error.message : String(error) });
       // Handle any unexpected errors that might occur
       setError(error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.');
     } finally {
@@ -162,21 +194,34 @@ export default function ConnectWalletPage() {
   }
 
   async function onNostrSubmit(values: z.infer<typeof nostrFormSchema>) {
+    // Reset navigation flag
+    hasNavigated.current = false;
+    loginTimer.current.start('nostrLoginStart');
+    
     setIsNostrSubmitting(true);
     setError(null);
 
+    loginTimer.current.mark('loginWithNostrStart');
     const result = await loginWithNostr(values.nsec);
+    loginTimer.current.mark('loginWithNostrComplete', { success: !result.error });
 
     if (result.error) {
+      loginTimer.current.mark('nostrLoginError', { error: result.error });
       setError(result.error);
       setNostrLoginOpen(false);
     } else {
+      loginTimer.current.mark('nostrLoginSuccessful');
       toast({
         title: "Login Successful",
         description: "Found your saved wallets. Redirecting to your dashboard.",
       });
       setNostrLoginOpen(false);
-      // The useEffect will handle the redirect
+      // The useEffect will handle the redirect when activeXpub updates
+      setTimeout(() => {
+        if (process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_DEBUG_LOGIN_FLOW === 'true') {
+          console.log(loginTimer.current.getSummary());
+        }
+      }, 100);
     }
     setIsNostrSubmitting(false);
   }
@@ -185,6 +230,8 @@ export default function ConnectWalletPage() {
     setError(null);
     setIsSubmitting(false);
     form.reset();
+    hasNavigated.current = false;
+    loginTimer.current.reset();
   };
 
   if (isWalletLoading && !activeXpub) {
