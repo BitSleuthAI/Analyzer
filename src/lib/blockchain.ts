@@ -1,6 +1,4 @@
 
-'use server';
-
 import { bitcoin, bip32 } from '@/lib/bitcoin-init';
 import type { WalletData, Transaction, AddressInfo, UTXO, Currency, TransactionLabel } from '@/lib/types';
 import { KNOWN_EXCHANGE_ADDRESSES } from '@/lib/exchange-labels';
@@ -247,10 +245,11 @@ export async function discoverUsedAddressesProgressive(
     const inferenceResult = inferAddressTypesFromXpub(xpub);
 
     // Quick provider readiness check (with fallback & retry under the hood)
+    // Do not hard-fail here; continue and let downstream calls surface provider errors if needed.
     try {
         await esploraGet(`/blocks/tip/height`, 60);
     } catch (e) {
-        throw new Error('Upstream data provider is temporarily unavailable. Please try again in a moment.');
+        console.warn('[Progressive Discovery] Provider readiness check failed, continuing.', e);
     }
 
     let activeTypes: AddressType[] = [];
@@ -423,11 +422,30 @@ async function getBatchedHistoricalPrices(dates: Date[], currency: Currency): Pr
  * Fetch blockchain data for a wallet and create a snapshot
  * This is the expensive operation that we want to cache
  */
+function createEmptySnapshot(xpub: string): WalletSnapshot {
+    return {
+        xpub,
+        timestamp: Date.now(),
+        transactions: [],
+        utxos: [],
+        addresses: [],
+        usedAddressCount: 0,
+        securityScore: 100,
+        opsecThreat: 'Low',
+        dustUtxoCount: 0,
+        dustAmountBTC: 0,
+        averageFeeRate: 0,
+        inflowBTC: 0,
+        outflowBTC: 0,
+        balanceBTC: 0,
+    };
+}
+
 async function fetchWalletSnapshot(xpub: string, currency: Currency): Promise<WalletSnapshot | null> {
     const usedAddresses = await getCachedUsedAddresses(xpub);
 
     if (usedAddresses.length === 0) {
-        return null;
+        return createEmptySnapshot(xpub);
     }
 
     // Fetch non-critical data, allowing for graceful failure.
@@ -613,9 +631,15 @@ export async function getWalletData(xpub: string, currency: Currency = 'USD'): P
         // Always fetch fresh price data (this is fast and currency-specific)
         // This is the ONLY thing we re-fetch on currency changes or wallet switches
         console.log(`[WalletData] Fetching fresh price data for ${currency}...`);
-        const btcPrices = await fetchJson('https://blockchain.info/ticker');
+        let btcPrices: Record<string, { last: number }> = {};
+        try {
+            btcPrices = await fetchJson('https://blockchain.info/ticker');
+        } catch (e) {
+            console.warn('[WalletData] Failed to fetch BTC price data, continuing with zeroed prices.', e);
+            btcPrices = { USD: { last: 0 }, EUR: { last: 0 }, GBP: { last: 0 } };
+        }
         if (typeof btcPrices?.USD?.last !== 'number') {
-            return { data: null, error: 'Could not fetch critical BTC price data. The API may be down.' };
+            btcPrices = { USD: { last: 0 }, EUR: { last: 0 }, GBP: { last: 0 } };
         }
 
         // Fetch currency-specific historical price data (cached by blockchain-api)
@@ -696,9 +720,15 @@ export async function getWalletDataProgressive(
         const cachedSnapshot = getCachedSnapshot(xpub);
         
         // Fetch fresh price data early (needed for all updates)
-        const btcPrices = await fetchJson('https://blockchain.info/ticker');
+        let btcPrices: Record<string, { last: number }> = {};
+        try {
+            btcPrices = await fetchJson('https://blockchain.info/ticker');
+        } catch (e) {
+            console.warn('[WalletData] Failed to fetch BTC price data, continuing with zeroed prices.', e);
+            btcPrices = { USD: { last: 0 }, EUR: { last: 0 }, GBP: { last: 0 } };
+        }
         if (typeof btcPrices?.USD?.last !== 'number') {
-            return { data: null, error: 'Could not fetch critical BTC price data. The API may be down.' };
+            btcPrices = { USD: { last: 0 }, EUR: { last: 0 }, GBP: { last: 0 } };
         }
 
         
@@ -731,7 +761,8 @@ export async function getWalletDataProgressive(
                 console.log(`[Progressive] Found address ${address} with ${txCount} transactions`);
                 discoveredAddresses.push(address);
                 
-                // Fetch data for this address immediately
+                // Fetch data for this address immediately for final assembly
+                // Note: Not calling onProgress here to avoid server/client boundary issues
                 try {
                     const [txs, utxos, info] = await Promise.all([
                         esploraGet(`/address/${address}/txs`).catch(() => []),
@@ -740,24 +771,6 @@ export async function getWalletDataProgressive(
                     ]);
                     
                     addressDataMap.set(address, { txs, utxos, info });
-                    
-                    // Build partial wallet data and notify
-                    if (onProgress) {
-                        const partialData = await buildPartialWalletData(
-                            xpub,
-                            Array.from(addressDataMap.entries()),
-                            btcPrices,
-                            currency,
-                            latestBlockHeight,
-                            {
-                                addressesChecked: discoveredAddresses.length,
-                                addressesWithActivity: discoveredAddresses.length,
-                                currentBatch: Math.ceil(discoveredAddresses.length / 20),
-                                isComplete: false,
-                            }
-                        );
-                        onProgress(partialData);
-                    }
                 } catch (err) {
                     console.error(`[Progressive] Failed to fetch data for address ${address}:`, err);
                 }
@@ -771,7 +784,26 @@ export async function getWalletDataProgressive(
         console.log(`[Progressive] Discovery complete - ${discoveredAddresses.length} addresses found`);
         
         if (discoveredAddresses.length === 0) {
-            return { data: null, error: 'This wallet has no transaction history yet. BitSleuth can only analyze wallets that have been used to send or receive Bitcoin.' };
+            const emptySnapshot = createEmptySnapshot(xpub);
+            setCachedSnapshot(emptySnapshot);
+            const emptyWalletData = await assembleFinalWalletData(emptySnapshot, btcPrices, currency);
+            
+            // Send final update for empty wallet
+            if (onProgress && emptyWalletData) {
+                const finalPartialData: PartialWalletData = {
+                    ...emptyWalletData,
+                    discoveryProgress: {
+                        addressesChecked: 0,
+                        addressesWithActivity: 0,
+                        currentBatch: 0,
+                        isComplete: true,
+                    },
+                    isComplete: true,
+                };
+                onProgress(finalPartialData);
+            }
+            
+            return { data: emptyWalletData, error: null };
         }
         
         // Build final snapshot and cache it

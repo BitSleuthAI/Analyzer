@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
 import { getPublicKey, nip19, nip04, finalizeEvent, SimplePool } from 'nostr-tools';
 import type { Event as NostrEvent } from 'nostr-tools';
 import { getWalletData as fetchWalletData, getWalletDataProgressive, type DiscoveryProgress, type PartialWalletData } from '@/lib/blockchain';
@@ -37,6 +37,7 @@ type WalletState = {
   suggestions: string[];
   recommendations: SecurityRecommendation[];
   recommendationsError: string | null;
+  testXpub: string | null;
   setActiveXpub: (xpub: string | null) => void;
   addXpub: (xpub: string) => Promise<{ success: boolean; error: string | null }>;
   removeXpub: (xpub: string) => Promise<void>;
@@ -109,7 +110,14 @@ const generateInitialGreetingMessage = (): Message => {
     };
 };
 
-export const WalletProvider = ({ children }: { children: ReactNode }) => {
+export const WalletProvider = ({ children, testXpub }: { children: ReactNode; testXpub?: string }) => {
+  const testXpubValue = useMemo(() => {
+    if (!testXpub) {
+      return null;
+    }
+    const normalized = normalizeXpub(testXpub);
+    return isLikelyXpub(normalized) ? normalized : null;
+  }, [testXpub]);
   const [xpubs, setXpubs] = useState<string[]>([]);
   const [activeXpub, setActiveXpub] = useState<string | null>(null);
   const [data, setData] = useState<WalletState['data']>(null);
@@ -162,6 +170,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     // Invalidate any in-flight fetches immediately when switching wallets.
     activeRequestId.current += 1;
 
+    // Note: activeXpub is intentionally not in dependencies to avoid circular updates
+    logger.loginFlow('setActiveXpubAndPersist', { 
+      newXpub: newXpub?.substring(0, 20) + '...',
+      previousXpub: activeXpub?.substring(0, 20) + '...'
+    });
+
     setActiveXpub(newXpub);
     setError(null);
     setRecommendations([]);
@@ -198,9 +212,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       if (cachedData) {
         setData(cachedData);
         setIsLoading(false);
+        logger.loginFlow('cachedDataLoaded', { hasCachedData: true });
       } else {
         setData(null);
         setIsLoading(true);
+        logger.loginFlow('noCachedData', { willFetchFresh: true });
       }
       return;
     }
@@ -208,7 +224,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('activeXpub');
     setData(null);
     setIsLoading(false);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // activeXpub intentionally omitted to avoid circular updates
 
   const fetchNostrProfile = useCallback(async (pubkey: string): Promise<NostrProfile | null> => {
     const pool = new SimplePool();
@@ -510,12 +527,23 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           _setCurrency(storedCurrency);
         }
 
+        const normalizedTestXpub = testXpubValue;
         let currentXpubs = JSON.parse(localStorage.getItem('walletXpubs') || '[]');
         if (Array.isArray(currentXpubs)) {
           currentXpubs = Array.from(new Set(currentXpubs.map(normalizeXpub).filter(Boolean)));
         } else {
           currentXpubs = [];
         }
+
+        if (normalizedTestXpub) {
+          currentXpubs = [normalizedTestXpub];
+          setXpubs(currentXpubs);
+          localStorage.setItem('walletXpubs', JSON.stringify(currentXpubs));
+          setActiveXpubAndPersist(normalizedTestXpub);
+          resetChunkRetry();
+          return;
+        }
+
         const storedNsec = localStorage.getItem('nostr_nsec');
 
         if (storedNsec) {
@@ -569,20 +597,25 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       }
     };
     init();
-  }, [isNostrReady, fetchNostrProfile, disconnectNostr, loadXpubsFromNostr, setActiveXpubAndPersist]);
+  }, [isNostrReady, fetchNostrProfile, disconnectNostr, loadXpubsFromNostr, setActiveXpubAndPersist, testXpubValue]);
 
   const addXpub = useCallback(async (inputXpub: string): Promise<{ success: boolean; error: string | null }> => {
+    logger.loginFlow('addXpub_start', { xpubPrefix: inputXpub.substring(0, 4) });
+    
     const newXpub = normalizeXpub(inputXpub);
 
     if (!newXpub) {
+      logger.loginFlow('addXpub_error', { reason: 'empty_xpub' });
       return { success: false, error: 'XPUB key is required.' };
     }
 
     if (!isLikelyXpub(newXpub)) {
+      logger.loginFlow('addXpub_error', { reason: 'invalid_format' });
       return { success: false, error: 'Invalid XPUB format. Please check that you entered the correct extended public key.' };
     }
 
     if (xpubs.includes(newXpub)) {
+      logger.loginFlow('addXpub_existing', { xpub: newXpub.substring(0, 20) + '...' });
       setActiveXpubAndPersist(newXpub);
       return { success: true, error: null };
     }
@@ -591,6 +624,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     setXpubs(newXpubs);
     localStorage.setItem('walletXpubs', JSON.stringify(newXpubs));
 
+    logger.loginFlow('addXpub_settingActive', { xpub: newXpub.substring(0, 20) + '...' });
     setActiveXpubAndPersist(newXpub);
 
     const savePreference = localStorage.getItem('nostr_save_preference');
@@ -607,6 +641,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       connectMethod = 'xpub';
     }
     track('connect_wallet', { method: connectMethod });
+    
+    logger.loginFlow('addXpub_success', { connectMethod });
     return { success: true, error: null };
   }, [xpubs, setActiveXpubAndPersist, nostrNsec, saveXpubsToNostr, track]);
 
@@ -756,8 +792,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
       
-      // Final data is already set by the progress callback
+      // Always set the final data (progress callback may not be called for empty wallets)
       if (result.data) {
+        setData(result.data);
         try {
           const cacheEntry = {
             _cacheMetadata: {
@@ -1113,6 +1150,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       suggestions,
       recommendations,
       recommendationsError,
+      testXpub: testXpubValue,
       setActiveXpub: setActiveXpubAndPersist,
       addXpub,
       removeXpub,
