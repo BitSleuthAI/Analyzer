@@ -1,6 +1,6 @@
 
 import { bitcoin, bip32 } from '@/lib/bitcoin-init';
-import type { WalletData, Transaction, AddressInfo, UTXO, Currency, TransactionLabel } from '@/lib/types';
+import type { WalletData, Transaction, AddressInfo, UTXO, Currency, TransactionLabel, BtcPriceInfo } from '@/lib/types';
 import { KNOWN_EXCHANGE_ADDRESSES } from '@/lib/exchange-labels';
 import { esploraGet, fetchJson, getHistoricalPriceRange } from './blockchain-api';
 import { format, startOfDay } from 'date-fns';
@@ -24,6 +24,45 @@ const XPUB_LOG_PREFIX_LENGTH = 12; // How many characters of XPUB to show in log
 
 const addressDiscoveryCache = new Map<string, { addresses: string[]; timestamp: number }>();
 const addressDiscoveryPromises = new Map<string, Promise<string[]>>();
+
+const DEFAULT_BTC_PRICES: Record<string, BtcPriceInfo> = {
+    USD: { last: 0, symbol: '$' },
+    EUR: { last: 0, symbol: '€' },
+    GBP: { last: 0, symbol: '£' },
+};
+
+function normalizeBtcPrices(data: unknown): Record<string, BtcPriceInfo> {
+    if (!data || typeof data !== 'object') {
+        return { ...DEFAULT_BTC_PRICES };
+    }
+
+    const prices = data as Record<string, Partial<BtcPriceInfo>>;
+    const normalized: Record<string, BtcPriceInfo> = {
+        USD: {
+            last: typeof prices.USD?.last === 'number' ? prices.USD.last : 0,
+            symbol: typeof prices.USD?.symbol === 'string' ? prices.USD.symbol : '$',
+        },
+        EUR: {
+            last: typeof prices.EUR?.last === 'number' ? prices.EUR.last : 0,
+            symbol: typeof prices.EUR?.symbol === 'string' ? prices.EUR.symbol : '€',
+        },
+        GBP: {
+            last: typeof prices.GBP?.last === 'number' ? prices.GBP.last : 0,
+            symbol: typeof prices.GBP?.symbol === 'string' ? prices.GBP.symbol : '£',
+        },
+    };
+
+    Object.entries(prices).forEach(([code, entry]) => {
+        if (!normalized[code]) {
+            normalized[code] = {
+                last: typeof entry?.last === 'number' ? entry.last : 0,
+                symbol: typeof entry?.symbol === 'string' ? entry.symbol : code,
+            };
+        }
+    });
+
+    return normalized;
+}
 
 function getP2wpkhAddress(pubKey: Uint8Array): string {
     return bitcoin.payments.p2wpkh({ pubkey: pubKey }).address!;
@@ -631,15 +670,13 @@ export async function getWalletData(xpub: string, currency: Currency = 'USD'): P
         // Always fetch fresh price data (this is fast and currency-specific)
         // This is the ONLY thing we re-fetch on currency changes or wallet switches
         console.log(`[WalletData] Fetching fresh price data for ${currency}...`);
-        let btcPrices: Record<string, { last: number }> = {};
+        let btcPrices: Record<string, BtcPriceInfo> = { ...DEFAULT_BTC_PRICES };
         try {
-            btcPrices = await fetchJson('https://blockchain.info/ticker');
+            const fetchedPrices = await fetchJson('https://blockchain.info/ticker');
+            btcPrices = normalizeBtcPrices(fetchedPrices);
         } catch (e) {
             console.warn('[WalletData] Failed to fetch BTC price data, continuing with zeroed prices.', e);
-            btcPrices = { USD: { last: 0 }, EUR: { last: 0 }, GBP: { last: 0 } };
-        }
-        if (typeof btcPrices?.USD?.last !== 'number') {
-            btcPrices = { USD: { last: 0 }, EUR: { last: 0 }, GBP: { last: 0 } };
+            btcPrices = { ...DEFAULT_BTC_PRICES };
         }
 
         // Fetch currency-specific historical price data (cached by blockchain-api)
@@ -720,15 +757,13 @@ export async function getWalletDataProgressive(
         const cachedSnapshot = getCachedSnapshot(xpub);
         
         // Fetch fresh price data early (needed for all updates)
-        let btcPrices: Record<string, { last: number }> = {};
+        let btcPrices: Record<string, BtcPriceInfo> = { ...DEFAULT_BTC_PRICES };
         try {
-            btcPrices = await fetchJson('https://blockchain.info/ticker');
+            const fetchedPrices = await fetchJson('https://blockchain.info/ticker');
+            btcPrices = normalizeBtcPrices(fetchedPrices);
         } catch (e) {
             console.warn('[WalletData] Failed to fetch BTC price data, continuing with zeroed prices.', e);
-            btcPrices = { USD: { last: 0 }, EUR: { last: 0 }, GBP: { last: 0 } };
-        }
-        if (typeof btcPrices?.USD?.last !== 'number') {
-            btcPrices = { USD: { last: 0 }, EUR: { last: 0 }, GBP: { last: 0 } };
+            btcPrices = { ...DEFAULT_BTC_PRICES };
         }
 
         
@@ -849,7 +884,7 @@ export async function getWalletDataProgressive(
 async function buildPartialWalletData(
     xpub: string,
     addressData: Array<[string, { txs: any[]; utxos: any[]; info: any }]>,
-    btcPrices: any,
+    btcPrices: Record<string, BtcPriceInfo>,
     currency: Currency,
     latestBlockHeight: number | null,
     progress: DiscoveryProgress
@@ -968,7 +1003,7 @@ async function buildSnapshotFromAddressData(
     const partialData = await buildPartialWalletData(
         xpub,
         addressData,
-        {},
+        { ...DEFAULT_BTC_PRICES },
         currency,
         latestBlockHeight,
         { addressesChecked: addressData.length, addressesWithActivity: addressData.length, currentBatch: 0, isComplete: true }
@@ -995,7 +1030,7 @@ async function buildSnapshotFromAddressData(
 // Helper function to assemble final wallet data from snapshot
 async function assembleFinalWalletData(
     snapshot: WalletSnapshot,
-    btcPrices: any,
+    btcPrices: Record<string, BtcPriceInfo>,
     currency: Currency
 ): Promise<WalletData | null> {
     const [priceHistory24h, priceHistory7d, priceHistory30d] = await Promise.all([
