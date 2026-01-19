@@ -112,7 +112,7 @@ updates:
       day: "monday"
       time: "09:00"
       timezone: "Etc/UTC"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 20
     labels:
       - "dependencies"
       - "github-actions"
