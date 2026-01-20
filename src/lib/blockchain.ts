@@ -757,7 +757,7 @@ export async function getWalletDataProgressive(
         const cachedSnapshot = getCachedSnapshot(xpub);
         
         // Fetch fresh price data early (needed for all updates)
-        let btcPrices: Record<string, BtcPriceInfo> = { ...DEFAULT_BTC_PRICES };
+        let btcPrices: Record<string, BtcPriceInfo>;
         try {
             const fetchedPrices = await fetchJson('https://blockchain.info/ticker');
             btcPrices = normalizeBtcPrices(fetchedPrices);
