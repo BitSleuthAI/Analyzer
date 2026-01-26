@@ -545,12 +545,12 @@ export default function EnhancedReportPage() {
       </Card>
 
       {/* Disclaimer */}
-      <Alert className="border-amber-500/20 bg-gradient-to-r from-amber-500/10 to-orange-500/5 shadow-sm">
-        <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-        <AlertTitle className="text-amber-900 dark:text-amber-100">Tax Disclaimer</AlertTitle>
-        <AlertDescription className="text-amber-800 dark:text-amber-200">
-          This report is for informational purposes only and does not constitute tax, legal, or financial advice. 
-          Tax laws vary by jurisdiction and individual circumstances. Always consult with a qualified tax professional 
+      <Alert variant="warning" className="shadow-md">
+        <AlertTriangle className="h-5 w-5" />
+        <AlertTitle>Tax Disclaimer</AlertTitle>
+        <AlertDescription>
+          This report is for informational purposes only and does not constitute tax, legal, or financial advice.
+          Tax laws vary by jurisdiction and individual circumstances. Always consult with a qualified tax professional
           before making tax-related decisions.
         </AlertDescription>
       </Alert>
