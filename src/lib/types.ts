@@ -98,10 +98,16 @@ export interface ChartData {
   options?: any;
 }
 
+export type FollowUpSuggestion = {
+  question: string;
+  context: string;
+};
+
 export type Message = {
   role: 'user' | 'assistant' | 'system';
   content: string;
   chart?: ChartData;
+  followUpSuggestions?: FollowUpSuggestion[];
 };
 
 export type NewsArticle = {
