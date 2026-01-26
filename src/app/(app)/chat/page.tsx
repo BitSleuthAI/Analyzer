@@ -219,10 +219,11 @@ export default function ChatPage() {
           }
       } else {
           track('ask_ai_chat', { type: 'question', length: message.length });
-          const assistantMessageIndex = currentHistory.length + 1;
 
-          setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
-
+          // Use streamFlow but don't display raw streaming chunks to the user.
+          // Genkit with structured output schemas streams raw JSON being built,
+          // which includes `{"answer":`, `"chart": null`, `"followUpSuggestions": ...`.
+          // We wait for the final parsed output and display only the clean answer.
           const { stream, output } = streamFlow({
             url: '/api/chat',
             headers: {
@@ -236,39 +237,25 @@ export default function ChatPage() {
             },
           });
 
-          let streamedAnswer = '';
+          // Consume the stream to ensure the request completes, but don't display raw JSON
           for await (const chunk of stream as AsyncIterable<WalletInsightsChatStreamChunk>) {
-            if (chunk.type === 'token' && chunk.content) {
-              streamedAnswer += chunk.content;
-              setMessages((prev) => {
-                const updated = [...prev];
-                const assistant = updated[assistantMessageIndex];
-                if (assistant) {
-                  updated[assistantMessageIndex] = {
-                    ...assistant,
-                    content: streamedAnswer,
-                  };
-                }
-                return updated;
-              });
-            }
+            // Stream consumed but not displayed - raw JSON chunks are not user-friendly
+            void chunk;
           }
 
+          // Get the final parsed result with clean answer text
           const result = (await output) as WalletInsightsChatOutput;
-          setMessages((prev) => {
-            const updated = [...prev];
-            const assistant = updated[assistantMessageIndex];
-            if (assistant) {
-              updated[assistantMessageIndex] = {
-                ...assistant,
-                content: result.answer,
-                chart: result.chart ?? undefined,
-              };
-            }
-            return updated;
-          });
 
-          assistantMessage = null;
+          // Validate result has a proper answer string
+          const answer = typeof result?.answer === 'string' && result.answer.trim()
+            ? result.answer
+            : 'I was unable to generate a response. Please try again.';
+
+          assistantMessage = {
+            role: 'assistant',
+            content: answer,
+            chart: result?.chart ?? undefined,
+          };
       }
 
       if (assistantMessage) {
@@ -281,16 +268,7 @@ export default function ChatPage() {
         role: 'system',
         content: 'I\'m sorry, I encountered an error. Please try again.',
       };
-      setMessages((prev) => {
-        const updated = [...prev];
-        const lastMessage = updated[updated.length - 1];
-
-        if (lastMessage && lastMessage.role === 'assistant' && lastMessage.content === '') {
-          updated.pop();
-        }
-
-        return [...updated, errorMessage];
-      });
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setAiLoading(false);
       updateSuggestions();
