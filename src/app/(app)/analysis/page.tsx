@@ -9,7 +9,7 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { IconContainer } from '@/components/ui/icon-container';
-import { PieChart, DollarSign, Activity, BarChart3, Loader2 } from 'lucide-react';
+import { PieChart, DollarSign, Activity, BarChart3, Loader2, Coins } from 'lucide-react';
 import {
   ChartContainer,
   ChartTooltipContent,
@@ -454,10 +454,15 @@ export default function AnalysisPage() {
             </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2">
-            <CardHeader>
-                <CardTitle className="text-base sm:text-lg">Largest UTXOs</CardTitle>
-                <CardDescription className="text-sm">A list of your top 10 largest unspent "coins".</CardDescription>
+        <Card className="lg:col-span-2 border-2 shadow-md">
+            <CardHeader className="bg-gradient-to-br from-amber-500/5 via-transparent to-transparent border-b">
+                <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                  <IconContainer variant="amber">
+                    <Coins className="h-5 w-5" />
+                  </IconContainer>
+                  Largest UTXOs
+                </CardTitle>
+                <CardDescription className="text-sm mt-2">A list of your top 10 largest unspent "coins".</CardDescription>
             </CardHeader>
             <CardContent className="px-0 sm:px-6">
                 <div className="overflow-x-auto">
