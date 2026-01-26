@@ -328,7 +328,7 @@ export default function ChatPage() {
             ? result.answer
             : 'I was unable to generate a response. Please try again.';
 
-          // Update with final answer and chart data
+          // Update with final answer, chart data, and follow-up suggestions
           setMessages((prev) => {
             const updated = [...prev];
             if (updated[assistantMessageIndex]) {
@@ -336,6 +336,7 @@ export default function ChatPage() {
                 ...updated[assistantMessageIndex],
                 content: finalAnswer,
                 chart: result?.chart ?? undefined,
+                followUpSuggestions: result?.followUpSuggestions ?? undefined,
               };
             }
             return updated;
@@ -544,6 +545,27 @@ export default function ChatPage() {
                   {message.chart && message.chart.data && message.chart.data.length > 0 && (
                     <div className="mt-2">
                         <AiChart chart={message.chart} />
+                    </div>
+                  )}
+
+                  {/* Follow-up suggestions */}
+                  {message.role === 'assistant' && message.followUpSuggestions && message.followUpSuggestions.length > 0 && !isAiLoading && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {message.followUpSuggestions.map((suggestion, suggestionIndex) => (
+                        <Button
+                          key={suggestionIndex}
+                          variant="outline"
+                          size="sm"
+                          className="h-auto px-3 py-1.5 text-xs text-left whitespace-normal"
+                          title={suggestion.context}
+                          onClick={() => {
+                            form.setValue('message', suggestion.question);
+                            form.handleSubmit(onSubmit)();
+                          }}
+                        >
+                          {suggestion.question}
+                        </Button>
+                      ))}
                     </div>
                   )}
                 </div>
