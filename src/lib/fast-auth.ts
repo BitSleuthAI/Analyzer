@@ -7,7 +7,6 @@
 
 // XPUB validation constants
 const XPUB_PREFIXES = new Set(['xpub', 'ypub', 'zpub', 'tpub', 'upub', 'vpub']);
-const BASE58_CHARS = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 const BASE58_RE = /^[1-9A-HJ-NP-Za-km-z]+$/;
 const XPUB_LENGTH_MIN = 100;
 const XPUB_LENGTH_MAX = 120;
