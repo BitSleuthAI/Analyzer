@@ -64,7 +64,7 @@ export default function ConnectWalletPage() {
   // Track if we've already navigated to prevent duplicate navigation
   const hasNavigated = useRef(false);
 
-  const { addXpub, activeXpub, isLoading: isWalletLoading, loginWithNostr, discoveryProgress, testXpub } = useWallet();
+  const { addXpub, activeXpub, isLoading: isWalletLoading, loginWithNostr, testXpub } = useWallet();
 
   const [isNostrLoginOpen, setNostrLoginOpen] = useState(false);
   const [isNostrSubmitting, setIsNostrSubmitting] = useState(false);
