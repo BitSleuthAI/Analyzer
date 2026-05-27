@@ -132,15 +132,24 @@ export async function esploraGet(path: string, revalidate?: number): Promise<any
     const attemptsPerProvider = 2;
     let lastError: any = null;
 
-    let sanitizedPath = path;
+    let sanitizedPath: string;
     const addressMatch = path.match(/^\/address\/([^/]+)(\/.*)?$/);
     const txMatch = path.match(/^\/tx\/([^/]+)$/);
     if (addressMatch) {
         const safeAddr = sanitizeAddress(addressMatch[1]);
-        sanitizedPath = `/address/${safeAddr}${addressMatch[2] ?? ''}`;
+        const suffix = addressMatch[2];
+        let safeSuffix = '';
+        if (suffix === '/txs') safeSuffix = '/txs';
+        else if (suffix === '/utxo') safeSuffix = '/utxo';
+        else if (suffix) throw new Error('Disallowed address endpoint.');
+        sanitizedPath = `/address/${safeAddr}${safeSuffix}`;
     } else if (txMatch) {
         const safeTxid = sanitizeTxid(txMatch[1]);
         sanitizedPath = `/tx/${safeTxid}`;
+    } else if (path === '/blocks/tip/height') {
+        sanitizedPath = '/blocks/tip/height';
+    } else {
+        throw new Error('Disallowed esplora path.');
     }
 
     const fullPath = `/api${sanitizedPath}`;
