@@ -210,7 +210,7 @@ export async function getHistoricalPriceRange(days: number, currency: Currency):
         }, {}, 3600);
         return data.prices || [];
     } catch (error) {
-        console.error(`Failed to fetch historical price range for ${days} days:`, error);
+        console.error('Failed to fetch historical price range for %s days:', String(days), error);
         return [];
     }
 }
