@@ -2,6 +2,7 @@
 
 'use server';
 
+import { VALID_CURRENCIES } from '@/lib/types';
 import type { Transaction, AddressInfo, Currency } from '@/lib/types';
 
 const BLOCKSTREAM_API_BASE = 'https://blockstream.info/api';
@@ -18,11 +19,11 @@ const ALLOWED_HOSTS = new Set([
 ]);
 
 const ALLOWED_PATHS: Record<string, RegExp[]> = {
-    'blockstream.info': [/^\/api\/[a-zA-Z0-9\-._~/%]*$/],
-    'mempool.space': [/^\/api\/[a-zA-Z0-9\-._~/%]*$/],
-    'api.coingecko.com': [/^\/api\/v3\/[a-zA-Z0-9\-._~/%]*$/],
-    'blockchain.info': [/^\/[a-zA-Z0-9\-._~/%]*$/],
-    'api.alternative.me': [/^\/[a-zA-Z0-9\-._~/%]*$/],
+    'blockstream.info': [/^\/api\/[a-zA-Z0-9\-._~/]*$/],
+    'mempool.space': [/^\/api\/[a-zA-Z0-9\-._~/]*$/],
+    'api.coingecko.com': [/^\/api\/v3\/[a-zA-Z0-9\-._~/]*$/],
+    'blockchain.info': [/^\/[a-zA-Z0-9\-._~/]*$/],
+    'api.alternative.me': [/^\/[a-zA-Z0-9\-._~/]*$/],
 };
 
 function sleep(ms: number): Promise<void> {
@@ -140,28 +141,29 @@ export async function esploraGet(path: string, revalidate?: number): Promise<any
 const priceCache = new Map<string, number>();
 
 export async function getHistoricalPrice(date: Date, currency: Currency): Promise<number> {
+    if (!(VALID_CURRENCIES as readonly string[]).includes(currency)) return 0;
     const dateKey = `${date.toISOString().split('T')[0]}-${currency}`;
     if (priceCache.has(dateKey)) {
         return priceCache.get(dateKey)!;
     }
-    // This API is slow, so we don't use fetchJson's default timeout here.
-    const url = `https://blockchain.info/toapi?currency=${currency}&value=1&time=${date.getTime()}`;
+    const url = `https://blockchain.info/toapi?currency=${encodeURIComponent(currency)}&value=1&time=${date.getTime()}`;
     try {
-        const response = await fetch(url, { next: { revalidate: 86400 } }); // Cache for 1 day
-        const price = await response.json();
+        const price = await fetchJson(url, {}, 86400);
         if (typeof price === 'number' && price > 0) {
             priceCache.set(dateKey, price);
         }
         return price || 0;
     } catch (error) {
         console.error(`Failed to fetch historical price for ${dateKey}:`, error);
-        return 0; // Return 0 if the API call fails
+        return 0;
     }
 }
 
 export async function getHistoricalPriceRange(days: number, currency: Currency): Promise<[number, number][]> {
+    if (!(VALID_CURRENCIES as readonly string[]).includes(currency)) return [];
     const currencyCode = currency.toLowerCase();
-    const url = `https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=${currencyCode}&days=${days}&interval=daily`;
+    const safeDays = Math.max(1, Math.trunc(Number(days)) || 1);
+    const url = `https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=${encodeURIComponent(currencyCode)}&days=${safeDays}&interval=daily`;
     try {
         const data = await fetchJson(url, {}, 3600); // Cache for 1 hour
         return data.prices || [];
