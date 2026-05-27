@@ -18,11 +18,11 @@ const ALLOWED_HOSTS = new Set([
 ]);
 
 const ALLOWED_PATHS: Record<string, RegExp[]> = {
-    'blockstream.info': [/^\/api\/[a-zA-Z0-9\-._~/%]*$/],
-    'mempool.space': [/^\/api\/[a-zA-Z0-9\-._~/%]*$/],
-    'api.coingecko.com': [/^\/api\/v3\/[a-zA-Z0-9\-._~/%]*$/],
-    'blockchain.info': [/^\/[a-zA-Z0-9\-._~/%]*$/],
-    'api.alternative.me': [/^\/[a-zA-Z0-9\-._~/%]*$/],
+    'blockstream.info': [/^\/api\/[a-zA-Z0-9\-._~/]*$/],
+    'mempool.space': [/^\/api\/[a-zA-Z0-9\-._~/]*$/],
+    'api.coingecko.com': [/^\/api\/v3\/[a-zA-Z0-9\-._~/]*$/],
+    'blockchain.info': [/^\/[a-zA-Z0-9\-._~/]*$/],
+    'api.alternative.me': [/^\/[a-zA-Z0-9\-._~/]*$/],
 };
 
 function sleep(ms: number): Promise<void> {

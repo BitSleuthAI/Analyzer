@@ -56,7 +56,8 @@ export async function getBlockDetails(hash: string, startIndex: number = 0): Pro
       return { data: null, error: 'The block hash you entered is not valid.' };
     }
 
-    const safeStartIndex = Math.max(0, Math.trunc(Number(startIndex)));
+    const n = Number(startIndex);
+    const safeStartIndex = Number.isFinite(n) && n >= 0 ? Math.trunc(n) : 0;
     const encodedHash = encodeURIComponent(normalizedHash);
     const blockUrl = `https://mempool.space/api/block/${encodedHash}`;
     const txsUrl = `https://mempool.space/api/block/${encodedHash}/txs/${safeStartIndex}`;
