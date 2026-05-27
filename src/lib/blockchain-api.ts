@@ -27,6 +27,22 @@ function sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function sanitizeAddress(address: string): string {
+    const trimmed = address.trim();
+    if (!/^(?:[13][a-km-zA-HJ-NP-Z1-9]{24,33}|bc1[a-z0-9]{39,59})$/.test(trimmed)) {
+        throw new Error('The address you entered is not a valid Bitcoin address.');
+    }
+    return encodeURIComponent(trimmed);
+}
+
+function sanitizeTxid(txid: string): string {
+    const trimmed = txid.trim();
+    if (!/^[a-fA-F0-9]{64}$/.test(trimmed)) {
+        throw new Error('The transaction ID you entered is not valid.');
+    }
+    return encodeURIComponent(trimmed);
+}
+
 export async function fetchJson(
     host: AllowedHost,
     pathname: string,
@@ -115,7 +131,19 @@ const ESPLORA_HOSTS: AllowedHost[] = ['blockstream', 'mempool'];
 export async function esploraGet(path: string, revalidate?: number): Promise<any> {
     const attemptsPerProvider = 2;
     let lastError: any = null;
-    const fullPath = `/api${path}`;
+
+    let sanitizedPath = path;
+    const addressMatch = path.match(/^\/address\/([^/]+)(\/.*)?$/);
+    const txMatch = path.match(/^\/tx\/([^/]+)$/);
+    if (addressMatch) {
+        const safeAddr = sanitizeAddress(addressMatch[1]);
+        sanitizedPath = `/address/${safeAddr}${addressMatch[2] ?? ''}`;
+    } else if (txMatch) {
+        const safeTxid = sanitizeTxid(txMatch[1]);
+        sanitizedPath = `/tx/${safeTxid}`;
+    }
+
+    const fullPath = `/api${sanitizedPath}`;
     for (const host of ESPLORA_HOSTS) {
         for (let attempt = 0; attempt < attemptsPerProvider; attempt++) {
             try {
@@ -181,8 +209,9 @@ export async function getHistoricalPriceRange(days: number, currency: Currency):
 
 export async function getAddressData(address: string): Promise<{ data: { addressInfo: AddressInfo, transactions: Transaction[], btcPrice: number } | null; error: string | null; }> {
     try {
-        const addressUrl = `/address/${address}`;
-        const addressTxsUrl = `/address/${address}/txs`;
+        const safeAddress = sanitizeAddress(address);
+        const addressUrl = `/address/${safeAddress}`;
+        const addressTxsUrl = `/address/${safeAddress}/txs`;
         const [addressStats, txsData, btcTicker] = await Promise.all([
             esploraGet(addressUrl, 300),
             esploraGet(addressTxsUrl, 300).catch(() => []),
@@ -248,8 +277,9 @@ export async function getAddressData(address: string): Promise<{ data: { address
 
 export async function getTransactionData(txid: string): Promise<{ data: Transaction | null; error: string | null; }> {
     try {
-        const txUrl = `/tx/${txid}`;
-        const txData = await esploraGet(txUrl, 86400); // Cache confirmed tx for a day
+        const safeTxid = sanitizeTxid(txid);
+        const txUrl = `/tx/${safeTxid}`;
+        const txData = await esploraGet(txUrl, 86400);
         if (!txData) return { data: null, error: `Could not fetch data for this transaction ID (${txid}).` };
 
         const latestBlockHeight = await esploraGet(`/blocks/tip/height`, 60);
@@ -287,8 +317,9 @@ export async function getTransactionData(txid: string): Promise<{ data: Transact
 
 export async function getAddressStats(address: string): Promise<{ data: AddressInfo | null; error: string | null; }> {
     try {
-        const addressStatsUrl = `/address/${address}`;
-        const stats = await esploraGet(addressStatsUrl, 300); // Cache for 5 mins
+        const safeAddress = sanitizeAddress(address);
+        const addressStatsUrl = `/address/${safeAddress}`;
+        const stats = await esploraGet(addressStatsUrl, 300);
         if (!stats) return { data: null, error: 'Could not fetch stats for this address.' };
 
         const addressInfo: AddressInfo = {
