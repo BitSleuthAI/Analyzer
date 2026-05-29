@@ -98,7 +98,7 @@ describe('fetchAddressDataConcurrent', () => {
 
         // No bare /address/{addr} call should have been made (stats were supplied).
         const bareAddressCalls = mockedEsploraGet.mock.calls.filter(
-            ([path]: [string]) => /^\/address\/[^/]+$/.test(path)
+            (call: any[]) => /^\/address\/[^/]+$/.test(call[0])
         );
         expect(bareAddressCalls.length).toBe(0);
         // The supplied stats are used as `info`.
