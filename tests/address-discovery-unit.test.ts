@@ -178,4 +178,17 @@ describe('Progressive connect performance regression guards', () => {
         expect(slice).toContain('Promise.race');
         expect(slice).toContain('DISCOVERY_TIMEOUT_MS');
     });
+
+    it('Discovery-phase progress emits never report isComplete:true', () => {
+        // discoverUsedAddressesProgressive fires a final onBatchComplete with
+        // isComplete:true when DISCOVERY ends - but the heavy fetch still follows.
+        // emitDiscoveryProgress must override isComplete:false, otherwise the
+        // dashboard flips out of loading (and clobbers cached data) with an empty
+        // zero-balance wallet before any transaction data is fetched.
+        const start = content.indexOf('const emitDiscoveryProgress');
+        const end = content.indexOf('};', start);
+        expect(start).toBeGreaterThan(-1);
+        const body = content.slice(start, end);
+        expect(body).toContain('isComplete: false');
+    });
 });

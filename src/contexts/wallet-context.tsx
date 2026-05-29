@@ -759,8 +759,15 @@ export const WalletProvider = ({ children, testXpub }: { children: ReactNode; te
     if (!hasCachedData) {
       console.log(`[WalletContext] Starting progressive discovery for wallet switch ${activeXpub.substring(0, 20)}...`);
 
+      let receivedComplete = false;
       const result = await getWalletDataProgressive(activeXpub, currency, (partialData: PartialWalletData) => {
         if (requestId !== activeRequestId.current) {
+          return;
+        }
+        // Once a completion update has been applied, ignore any late or
+        // out-of-order partial emit so it can't revert the finished dashboard
+        // back to a partial (lower-balance / fewer-tx) view.
+        if (receivedComplete) {
           return;
         }
         // Real-time UI updates as addresses are discovered!
@@ -787,6 +794,7 @@ export const WalletProvider = ({ children, testXpub }: { children: ReactNode; te
 
         // If complete, mark as no longer discovering
         if (partialData.isComplete) {
+          receivedComplete = true;
           setIsDiscovering(false);
           setIsLoading(false);
         }

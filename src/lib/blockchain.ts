@@ -847,7 +847,12 @@ export async function getWalletDataProgressive(
         // and shows a live "Found N addresses" counter while discovery runs.
         const emitDiscoveryProgress = (progress: DiscoveryProgress) => {
             if (!onProgress) return;
-            void buildPartialWalletData(xpub, [], btcPrices, currency, latestBlockHeight, progress)
+            // Discovery finishing is NOT the whole load finishing - the heavy
+            // per-address fetch still follows. Never forward isComplete:true here,
+            // or the dashboard would drop its loading state (and clobber any cached
+            // snapshot already shown) with an empty, zero-balance wallet.
+            const discoveryOnly: DiscoveryProgress = { ...progress, isComplete: false };
+            void buildPartialWalletData(xpub, [], btcPrices, currency, latestBlockHeight, discoveryOnly)
                 .then((partial) => onProgress(partial))
                 .catch(() => { /* progress emission is best-effort */ });
         };
@@ -1014,10 +1019,12 @@ async function buildPartialWalletData(
     }
     
     // Build transactions (simplified for performance)
+    // Hoisted out of the map: this is rebuilt for every transaction otherwise,
+    // and buildPartialWalletData runs repeatedly as data streams in during connect.
+    const ourAddressesSet = new Set(usedAddresses);
     const transactions: Transaction[] = Array.from(allTxs.values()).map((tx: any): Transaction => {
         let netAmountSatoshis = 0;
-        const ourAddressesSet = new Set(usedAddresses);
-        
+
         tx.vout.forEach((out: any) => {
             if (out.scriptpubkey_address && ourAddressesSet.has(out.scriptpubkey_address)) {
                 netAmountSatoshis += out.value;
