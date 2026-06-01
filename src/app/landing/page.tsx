@@ -20,6 +20,10 @@ import {
   Globe
 } from 'lucide-react';
 
+// Public marketing page — statically generated and revalidated hourly so it
+// can be served from the Firebase App Hosting CDN edge.
+export const revalidate = 3600;
+
 export const metadata: Metadata = {
   title: 'BitSleuth - Free AI Bitcoin Wallet Analyzer & Security Tool',
   description: 'The most advanced AI-powered Bitcoin wallet analyzer. Get comprehensive security insights, privacy analysis, and transaction patterns for any Bitcoin wallet. Free Bitcoin wallet scanner with AI technology.',
