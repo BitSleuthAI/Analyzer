@@ -20,6 +20,10 @@ import {
   Lightbulb
 } from 'lucide-react';
 
+// Public marketing page — statically generated and revalidated hourly so it
+// can be served from the Firebase App Hosting CDN edge.
+export const revalidate = 3600;
+
 export const metadata: Metadata = {
   title: 'About BitSleuth - AI Bitcoin Wallet Analyzer | Security & Privacy Tool',
   description: 'Learn about BitSleuth, the leading AI-powered Bitcoin wallet analyzer. Discover how our advanced security analysis, privacy tools, and transaction insights help Bitcoin users worldwide.',
