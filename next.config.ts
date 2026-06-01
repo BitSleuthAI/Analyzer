@@ -92,6 +92,54 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      {
+        // Static assets served from /public (images, icons, fonts). Filenames
+        // are not content-hashed, so use a week-long TTL with revalidation
+        // rather than `immutable`.
+        source: '/:path*.(svg|png|jpg|jpeg|gif|webp|avif|ico|woff|woff2)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=604800, stale-while-revalidate=86400',
+          },
+        ],
+      },
+      {
+        source: '/manifest.json',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=86400',
+          },
+        ],
+      },
+      {
+        // Public, non-personalised marketing pages. Edge-cache them but allow
+        // an instant revalidate after each deploy.
+        source: '/(landing|about)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400',
+          },
+        ],
+      },
+      {
+        // Signed-in app *shells*. These pages render an identical HTML shell for
+        // every user — all wallet data loads client-side via Server Actions, and
+        // auth gating happens client-side from localStorage. The shells are
+        // therefore safe to edge-cache (short TTL + SWR). NOTE: only the static
+        // shell is cached; the per-user data requests are separate POSTs that
+        // always reach the origin. Parameterised routes (address/[address] etc.)
+        // are intentionally excluded.
+        source: '/(dashboard|analysis|security|chat|report|coin-control)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=0, s-maxage=300, stale-while-revalidate=3600',
+          },
+        ],
+      },
     ];
   },
   // Updated experimental flags for Next.js 16
