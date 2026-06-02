@@ -107,7 +107,7 @@
     "genkit-cli": "1.36.0",
     "postcss": "^8.5.10",
     "tailwindcss": "^4.1.18",
-    "typescript": "5.9.3",
+    "typescript": "6.0.3",
     "vitest": "^4.1.7"
   },
   "overrides": {
