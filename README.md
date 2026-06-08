@@ -1,5 +1,13 @@
 # BitSleuth — AI Bitcoin Wallet Analyzer
 
+[![CI](https://github.com/BitSleuthAI/Analyzer/actions/workflows/ci.yml/badge.svg)](https://github.com/BitSleuthAI/Analyzer/actions/workflows/ci.yml)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
+[![Next.js 16](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs)](https://nextjs.org)
+[![React 19](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Live App](https://img.shields.io/badge/Live-app.bitsleuth.ai-F7931A?logo=bitcoin&logoColor=white)](https://app.bitsleuth.ai)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
 BitSleuth is an AI-powered Bitcoin wallet insights app. Enter a Bitcoin XPUB to analyze transactions, security posture, address reuse, dust, and trends. Explore mempool data, market stats, and get proactive security recommendations and chat-based insights.
 
 ![BitSleuth](public/1200x630.png)
