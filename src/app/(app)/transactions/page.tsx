@@ -148,7 +148,6 @@ const TransactionCard = React.memo(({ tx, fiatPrice, currency }: { tx: Transacti
   return (
     <Link
       href={`/transactions/${tx.id}`}
-      role="listitem"
       className="flex flex-col gap-2 border-b px-2 py-3 last:border-0 transition-colors active:bg-muted/50"
     >
       <TxIdentity tx={tx} d={d} />
@@ -289,7 +288,9 @@ export default function TransactionsPage() {
         <div className="sm:hidden" role="list">
           {transactionsToShow.length > 0 ? (
             transactionsToShow.map((tx) => (
-              <TransactionCard key={tx.id} tx={tx} fiatPrice={fiatPrice} currency={currency} />
+              <div role="listitem" key={tx.id}>
+                <TransactionCard tx={tx} fiatPrice={fiatPrice} currency={currency} />
+              </div>
             ))
           ) : (
             <p className="flex h-24 items-center justify-center text-center text-muted-foreground">
