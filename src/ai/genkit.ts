@@ -12,16 +12,15 @@ if (process.env.NODE_ENV === 'production') {
   }
 }
 
-// Check for API key and fail fast if missing to avoid placeholder configuration
 // Check for API key and warn if missing (don't throw to avoid build/import failures)
-const apiKey = process.env.OPENAI_API_KEY || process.env.OPENAI_CHATGPT_API_KEY;
+const apiKey = process.env.OPENAI_API_KEY;
 if (!apiKey) {
   console.warn(
-    'OPENAI_API_KEY (or OPENAI_CHATGPT_API_KEY) is missing. AI features will not work.'
+    'OPENAI_API_KEY is missing. AI features will not work.'
   );
 }
 
-// OpenAI configuration - uses OPENAI_API_KEY (with OPENAI_CHATGPT_API_KEY as a fallback) from environment
+// OpenAI configuration - uses OPENAI_API_KEY from environment
 export const ai = genkit({
   plugins: [
     openAI({
