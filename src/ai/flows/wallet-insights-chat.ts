@@ -2311,7 +2311,7 @@ Return only a JSON object with an "answer" string and optional "followUpSuggesti
     } catch (e: any) {
       console.error("Error in walletInsightsChatFlow:", e);
       const errorMessage = extractErrorMessage(e) || 'Unknown error';
-      const isApiKeyError = errorMessage.includes('API key') || errorMessage.includes('OPENAI_API_KEY') || errorMessage.includes('OPENAI_CHATGPT_API_KEY') || errorMessage.includes('401') || errorMessage.includes('403');
+      const isApiKeyError = errorMessage.includes('API key') || errorMessage.includes('OPENAI_API_KEY') || errorMessage.includes('401') || errorMessage.includes('403');
       const schemaError = isSchemaValidationError(e);
       const formattingError = isFormattingError(e);
 
@@ -2330,7 +2330,7 @@ Return only a JSON object with an "answer" string and optional "followUpSuggesti
 
       return {
           answer: isApiKeyError
-            ? "⚠️ **AI Service Configuration Issue**\n\nThe AI chat feature requires a valid OpenAI API key to be configured. Please contact the administrator to set up the OPENAI_API_KEY environment variable (or OPENAI_CHATGPT_API_KEY for backward compatibility).\n\nYou can still use other features of BitSleuth, such as transaction viewing, analysis charts, and security recommendations."
+            ? "⚠️ **AI Service Configuration Issue**\n\nThe AI chat feature requires a valid OpenAI API key to be configured. Please contact the administrator to set up the OPENAI_API_KEY environment variable.\n\nYou can still use other features of BitSleuth, such as transaction viewing, analysis charts, and security recommendations."
             : schemaError || formattingError
               ? "I had trouble formatting that last response, but nothing is wrong with your question. Please try again and I'll keep the answer concise."
               : `I'm sorry, I encountered an error while processing your request: ${errorMessage}\n\nPlease try again or rephrase your question.`,

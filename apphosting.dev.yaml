@@ -28,7 +28,3 @@ env:
 
   - variable: OPENAI_API_KEY
     secret: OPENAI_API_KEY
-
-  # Backward compatibility for deployments using the ChatGPT-specific key name
-  - variable: OPENAI_CHATGPT_API_KEY
-    secret: OPENAI_API_KEY
