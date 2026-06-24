@@ -13,9 +13,6 @@ export default function robots(): MetadataRoute.Robots {
           '/mempool',
           '/discover',
           '/feedback',
-          '/block/*',
-          '/transactions/*',
-          '/address/*',
         ],
         disallow: [
           '/dashboard/',
@@ -24,7 +21,12 @@ export default function robots(): MetadataRoute.Robots {
           '/chat/',
           '/report/',
           '/coin-control/',
-          '/transactions', // Disallow the generic transaction list page
+          // Dynamic explorer pages form an effectively infinite crawl trap
+          // (tx -> address -> tx -> ...) with negligible SEO value and run
+          // uncached server functions on every hit. Keep crawlers out.
+          '/transactions', // Covers the list page and all /transactions/* details
+          '/address/',
+          '/block/',
           '/api/',
         ],
       },
@@ -37,9 +39,6 @@ export default function robots(): MetadataRoute.Robots {
           '/mempool',
           '/discover',
           '/feedback',
-          '/block/*',
-          '/transactions/*',
-          '/address/*',
         ],
         disallow: [
           '/dashboard/',
@@ -49,6 +48,8 @@ export default function robots(): MetadataRoute.Robots {
           '/report/',
           '/coin-control/',
           '/transactions',
+          '/address/',
+          '/block/',
           '/api/',
         ],
       },
