@@ -130,9 +130,23 @@ const nextConfig: NextConfig = {
         // auth gating happens client-side from localStorage. The shells are
         // therefore safe to edge-cache (short TTL + SWR). NOTE: only the static
         // shell is cached; the per-user data requests are separate POSTs that
-        // always reach the origin. Parameterised routes (address/[address] etc.)
-        // are intentionally excluded.
+        // always reach the origin.
         source: '/(dashboard|analysis|security|chat|report|coin-control)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=0, s-maxage=300, stale-while-revalidate=3600',
+          },
+        ],
+      },
+      {
+        // Dynamic explorer routes (transactions/address/block). Like the app
+        // shells above, the SSR'd HTML is identical per route — all per-item
+        // data loads client-side via Server Actions. Vercel only edge-caches
+        // GET/HEAD, so the Server Action POSTs are never cached and always reach
+        // the origin; this rule only makes repeat *page* (GET) hits a cache HIT
+        // instead of a fresh server function, cutting compute->CDN egress.
+        source: '/:section(transactions|address|block)/:id*',
         headers: [
           {
             key: 'Cache-Control',
