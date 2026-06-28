@@ -60,7 +60,7 @@ const BOT_UA_REGEX = new RegExp(
   'i'
 );
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const userAgent = request.headers.get('user-agent') || '';
 
   if (BOT_UA_REGEX.test(userAgent)) {
