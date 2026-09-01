@@ -30,7 +30,7 @@
     "test:e2e:debug": "playwright test --debug"
   },
   "dependencies": {
-    "@bitcoinerlab/secp256k1": "^1.1.1",
+    "@bitcoinerlab/secp256k1": "^2.0.0",
     "@genkit-ai/compat-oai": "^1.36.0",
     "@genkit-ai/next": "^1.36.0",
     "@hookform/resolvers": "^5.4.0",
@@ -67,7 +67,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
     "dotenv": "^17.4.2",
-    "ecpair": "^3.0.1",
+    "ecpair": "^3.0.2",
     "embla-carousel-react": "^8.6.0",
     "genkit": "^1.36.0",
     "google-auth-library": "^10.2.0",
